@@ -351,6 +351,7 @@ export async function createRepairOrder(uid: string, input: NewRepairOrder): Pro
         blank(input.technicianId),
       ],
     );
+    await tx.query("select set_config('nyb.auto_status', '1', true)");
     await tx.query("update equipment set status = 'en_taller', status_reason = null where id = $1 and status <> 'en_taller'", [
       input.equipmentId,
     ]);
@@ -413,6 +414,7 @@ export async function updateRepairOrder(uid: string, id: string, u: RepairUpdate
     );
     const equipmentId = r.rows[0]?.equipment_id;
     if (!equipmentId) throw new Error("Orden inexistente");
+    await tx.query("select set_config('nyb.auto_status', '1', true)");
     await tx.query("update equipment set status = $2, status_reason = null where id = $1 and status is distinct from $2", [
       equipmentId,
       EQUIPMENT_STATUS_FOR_REPAIR[u.status],

@@ -36,12 +36,27 @@ export function NoteForm({ equipmentId }: { equipmentId: string }) {
 
 export function StatusForm({ equipmentId, current }: { equipmentId: string; current: EquipmentStatus }) {
   const [state, action, pending] = useActionState<FormState, FormData>(changeStatusAction.bind(null, equipmentId), {});
-  const [value, setValue] = useState<string>(current);
+  return <StatusInner key={`${state.stamp ?? 0}-${current}`} {...{ state, action, pending, current }} />;
+}
+
+function StatusInner({
+  state,
+  action,
+  pending,
+  current,
+}: {
+  state: FormState;
+  action: (f: FormData) => void;
+  pending: boolean;
+  current: EquipmentStatus;
+}) {
+  const initial = state.values?.status ?? current;
+  const [value, setValue] = useState<string>(initial);
   return (
     <form action={action} className="flex flex-col gap-3">
       {state.message && !state.errors && <Alert tone="success">{state.message}</Alert>}
       <Field label="Estado del equipo" htmlFor="status">
-        <Select id="status" name="status" value={value} onChange={(e) => setValue(e.target.value)}>
+        <Select id="status" name="status" defaultValue={initial} onChange={(e) => setValue(e.target.value)}>
           {EQUIPMENT_STATUSES.map((s) => (
             <option key={s} value={s}>{statusLabel("equipment", s)}</option>
           ))}
@@ -54,7 +69,7 @@ export function StatusForm({ equipmentId, current }: { equipmentId: string; curr
           required={value === "baja"}
           error={state.errors?.reason}
         >
-          <Input id="reason" name="reason" aria-invalid={state.errors?.reason ? true : undefined} />
+          <Input id="reason" name="reason" defaultValue={state.values?.reason} aria-invalid={state.errors?.reason ? true : undefined} />
         </Field>
       )}
       <Button type="submit" variant={value === "baja" ? "danger" : "secondary"} disabled={pending || value === current}>

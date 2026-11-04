@@ -4,7 +4,7 @@ import { Search } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
 import { countEquipment, listClients, listEquipment } from "@/lib/data";
 import { EQUIPMENT_STATUSES, statusLabel } from "@/lib/status";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, joinPlaces } from "@/lib/format";
 import { Button, ButtonLink, Card, EmptyState, Input, PageHeader, Select, StatusBadge } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Equipos" };
@@ -27,7 +27,7 @@ export default async function EquiposPage({ searchParams }: PageProps<"/equipos"
     <>
       <PageHeader
         eyebrow="Equipos"
-        title={totals.total === 1 ? "1 equipo" : `${totals.total} equipos de ${totals.clients} ${totals.clients === 1 ? "cliente" : "clientes"}`}
+        title={totals.total === 1 ? "1 equipo activo" : `${totals.total} equipos activos de ${totals.clients} ${totals.clients === 1 ? "cliente" : "clientes"}`}
         actions={<ButtonLink href="/equipos/nuevo">+ Nuevo equipo</ButtonLink>}
       />
 
@@ -125,7 +125,7 @@ export default async function EquiposPage({ searchParams }: PageProps<"/equipos"
                     <span className="text-sm text-muted">
                       {[e.brand, e.model].filter(Boolean).join(" ")} · <span className="mono">{e.serial ?? "sin número"}</span>
                     </span>
-                    <span className="text-sm text-muted">{[e.client_name, e.site_name, e.sector].filter(Boolean).join(" · ")}</span>
+                    <span className="text-sm text-muted">{joinPlaces(e.client_name, e.site_name, e.sector)}</span>
                   </Link>
                 </li>
               ))}

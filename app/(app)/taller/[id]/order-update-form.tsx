@@ -29,6 +29,27 @@ export function OrderUpdateForm({
     {},
   );
   const v = { ...initial, ...(state.values ?? {}) } as Values;
+  // key: con cada respuesta el formulario se arma de nuevo con los valores que devolvió el servidor
+  return <Inner key={state.stamp ?? 0} {...{ action, pending, state, v, receivedAt, today, technicians }} />;
+}
+
+function Inner({
+  action,
+  pending,
+  state,
+  v,
+  receivedAt,
+  today,
+  technicians,
+}: {
+  action: (f: FormData) => void;
+  pending: boolean;
+  state: FormState;
+  v: Values;
+  receivedAt: string;
+  today: string;
+  technicians: { id: string; full_name: string }[];
+}) {
   const err = state.errors ?? {};
   const [status, setStatus] = useState(v.status);
   const showDelivery = status === "entregado" || Boolean(v.deliveredAt);
@@ -41,7 +62,7 @@ export function OrderUpdateForm({
     <form action={action} className="flex flex-col gap-4" noValidate>
       {state.message && <Alert tone={state.errors ? "danger" : "success"}>{state.message}</Alert>}
       <Field label="Estado" htmlFor="status">
-        <Select id="status" name="status" value={status} onChange={(e) => setStatus(e.target.value)}>
+        <Select id="status" name="status" defaultValue={v.status} onChange={(e) => setStatus(e.target.value)}>
           {REPAIR_STATUSES.map((s) => (
             <option key={s} value={s}>{statusLabel("repair", s)}</option>
           ))}

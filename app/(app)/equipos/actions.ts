@@ -13,6 +13,8 @@ export type FormState = {
   message?: string;
   values?: Record<string, string>;
   duplicate?: { id: string; code: string };
+  /** Cambia en cada envío: los formularios lo usan como key para reiniciarse con los valores devueltos. */
+  stamp?: number;
 };
 
 const text = (max: number) => z.string().trim().max(max, `Máximo ${max} caracteres`);
@@ -80,12 +82,12 @@ const StatusSchema = z.object({
 export async function changeStatusAction(equipmentId: string, _: FormState, form: FormData): Promise<FormState> {
   const staff = await requireStaff();
   const parsed = StatusSchema.safeParse({ status: form.get("status"), reason: String(form.get("reason") ?? "") });
-  if (!parsed.success) return { message: "Elegí un estado válido." };
+  if (!parsed.success) return { message: "Elegí un estado válido.", stamp: Date.now() };
   if (parsed.data.status === "baja" && parsed.data.reason.length < 3)
-    return { errors: { reason: "Para dar de baja, escribí el motivo." } };
+    return { errors: { reason: "Para dar de baja, escribí el motivo." }, values: { status: parsed.data.status, reason: parsed.data.reason }, stamp: Date.now() };
   await setEquipmentStatus(staff.id, equipmentId, parsed.data.status, parsed.data.reason);
   revalidatePath(`/equipos/${equipmentId}`);
-  return { message: "Estado actualizado." };
+  return { message: "Estado actualizado.", stamp: Date.now() };
 }
 
 export async function addNoteAction(equipmentId: string, _: FormState, form: FormData): Promise<FormState> {

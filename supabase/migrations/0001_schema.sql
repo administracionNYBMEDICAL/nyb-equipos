@@ -356,7 +356,8 @@ begin
             auth.uid(), current_signature());
     return new;
   end if;
-  if new.status is distinct from old.status then
+  -- Si el cambio de estado lo provoca una orden de taller (nyb.auto_status = 1), ya queda anotado por la orden.
+  if new.status is distinct from old.status and coalesce(current_setting('nyb.auto_status', true), '') <> '1' then
     insert into history_entries (equipment_id, type, summary, data, visible_on_qr, created_by, created_by_name)
     values (new.id, case when new.status = 'baja' then 'baja' else 'estado' end,
             'Estado: ' || status_label('equipment', old.status) || ' → ' || status_label('equipment', new.status) || coalesce(' (' || new.status_reason || ')', ''),
@@ -431,7 +432,10 @@ language sql stable security definer set search_path = public as $$
     'site', s.name, 'sector', e.sector,
     'status', e.status,
     'next_due_on', (select min(next_due_on) from maintenance_plans mp where mp.equipment_id = e.id and mp.active),
-    'last_service_on', (select max(executed_on) from maintenance_runs mr where mr.equipment_id = e.id),
+    'last_service_on', (select max(d) from (
+        select max(executed_on) as d from maintenance_runs mr where mr.equipment_id = e.id
+        union all
+        select max(delivered_at) from repair_orders ro where ro.equipment_id = e.id and ro.status = 'entregado') x),
     'history', coalesce((select jsonb_agg(jsonb_build_object('at', h.created_at, 'type', h.type, 'summary', h.summary)
                                           order by h.created_at desc)
                          from (select * from history_entries h

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Search } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
 import { getEquipment, listEquipment, listStaff } from "@/lib/data";
-import { todayAR } from "@/lib/format";
+import { todayAR, joinPlaces } from "@/lib/format";
 import { Button, ButtonLink, Card, EmptyState, Input, PageHeader, StatusBadge } from "@/components/ui";
 import { OrderForm } from "./order-form";
 
@@ -49,7 +49,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/taller/
                         <span className="min-w-0 flex-1">
                           <span className="font-medium">{e.equipment_type}</span>
                           <span className="text-sm text-muted"> · {[e.brand, e.model].filter(Boolean).join(" ")} · <span className="mono">{e.serial ?? "sin número"}</span></span>
-                          <span className="block text-xs text-muted">{[e.client_name, e.site_name, e.sector].filter(Boolean).join(" · ")}</span>
+                          <span className="block text-xs text-muted">{joinPlaces(e.client_name, e.site_name, e.sector)}</span>
                         </span>
                         {e.open_order_status ? <StatusBadge group="repair" value={e.open_order_status} /> : <StatusBadge group="equipment" value={e.status} />}
                       </Link>
@@ -72,7 +72,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/taller/
           <span className="mono">{equipment.code}</span> · {[equipment.brand, equipment.model].filter(Boolean).join(" ")} ·{" "}
           <span className="mono">{equipment.serial ?? "sin número"}</span>
         </p>
-        <p className="text-sm text-muted">{[equipment.client_name, equipment.site_name, equipment.sector].filter(Boolean).join(" · ")}</p>
+        <p className="text-sm text-muted">{joinPlaces(equipment.client_name, equipment.site_name, equipment.sector)}</p>
       </PageHeader>
       <OrderForm equipmentId={equipment.id} today={todayAR()} technicians={technicians} currentUserId={staff.id} />
     </>

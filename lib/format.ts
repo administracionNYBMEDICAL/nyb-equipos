@@ -51,3 +51,17 @@ export function parseMoney(input: string | null | undefined): number | null {
   const n = Number(normalized);
   return Number.isFinite(n) ? Math.round(n * 100) : NaN;
 }
+
+/** Une partes con " · " salteando vacías y repetidas (cliente = hospital, por ejemplo). */
+export function joinPlaces(...parts: (string | null | undefined)[]): string {
+  const seen = new Set<string>();
+  return parts
+    .filter((p): p is string => Boolean(p && p.trim()))
+    .filter((p) => {
+      const k = p.trim().toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .join(" · ");
+}

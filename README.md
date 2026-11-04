@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Equipos · NYB Medical
 
-## Getting Started
+Plataforma interna de NYB Medical: cada equipo que pasa por el taller tiene su código NYB, su etiqueta QR y su hoja de vida. Reemplaza a la planilla "EQUIPAMIENTO EN REPARACIÓN - NYB".
 
-First, run the development server:
+- **Personal NYB** (con usuario): inventario, taller, hoja de vida, etiquetas.
+- **Cliente** (escanea el QR, sin usuario): ve el equipo, su estado, último servicio, próximo preventivo y el historial que NYB marcó como visible. Nunca ve costos, presupuestos, remitos, técnicos ni al cliente intermediario.
 
+Stack: Next.js 16 · Supabase (Postgres + Auth) · Vercel.
+
+## Puesta en marcha (una sola vez)
+
+### 1. Base de datos en Supabase
+1. Crear un proyecto nuevo. Región: **São Paulo (sa-east-1)**, la más cercana.
+2. **SQL Editor** → pegar todo `supabase/migrations/0001_schema.sql` → **Run**.
+3. **Authentication → Users → Add user**: email y contraseña de cada persona (marcar *Auto Confirm User*).
+4. **SQL Editor** → `scripts/alta-usuario.sql`, una vez por persona, con su email, nombre y rol.
+5. **Authentication → Sign In / Providers**: desactivar *Allow new users to sign up* (solo entra quien NYB da de alta).
+
+### 2. App en Vercel
+1. **Add New → Project** → importar el repositorio `nyb-equipos`.
+2. **Environment Variables** (ver `.env.example`):
+   - `DATABASE_URL`: Supabase → Connect → *Transaction pooler* (puerto 6543), con la contraseña de la base.
+   - `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase → Project Settings → API.
+   - `APP_URL`: `https://equipos.nybmedical.com`
+3. **Deploy**.
+
+### 3. Dominio
+Vercel → Project → **Settings → Domains** → agregar `equipos.nybmedical.com`. Vercel muestra un registro **CNAME**: cargarlo en el DNS de `nybmedical.com` (donde se compró el dominio).
+
+> **Importante:** la dirección `APP_URL` queda impresa en cada etiqueta. Definirla antes de imprimir y no cambiarla después. La ruta `/q/` tampoco se cambia nunca.
+
+## Desarrollo local
 ```bash
+npm install
+cp .env.example .env.local   # completar
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+Sin Supabase se puede probar contra un Postgres local: `scripts/supabase-shim.sql` → migración → `scripts/grants-dev.sql` → `scripts/seed-dev.sql`, y `DEV_AUTH_USER_ID` en `.env.local`. Ese modo está bloqueado en Vercel.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Dónde está cada cosa
+- `supabase/migrations/` esquema, reglas de acceso (RLS), hoja de vida de solo agregado, ficha pública.
+- `lib/data.ts` todas las consultas. `lib/auth.ts` sesión y personal.
+- `app/(app)/` pantallas internas. `app/q/[token]` ficha pública del QR.
+- `replica/` el plan: recon, arquitectura, diseño, matriz de funciones y registro de construcción.

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { requireStaff } from "@/lib/auth";
 import { listOpenOrders } from "@/lib/data";
 import { OPEN_REPAIR_STATUSES } from "@/lib/status";
-import { daysSince } from "@/lib/format";
+import { daysSince, joinPlaces } from "@/lib/format";
 import { ButtonLink, EmptyState, PageHeader, StatusBadge, Card } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Taller" };
@@ -52,7 +52,7 @@ export default async function TallerPage() {
                         </span>
                         <span className="block font-semibold">{o.equipment_type}</span>
                         <span className="block text-xs text-muted">{[o.brand, o.model].filter(Boolean).join(" ")}</span>
-                        <span className="block text-xs text-muted">{[o.client_name, o.site_name].filter(Boolean).join(" · ")}</span>
+                        <span className="block text-xs text-muted">{joinPlaces(o.client_name, o.site_name)}</span>
                         {o.technician_name && (
                           <span className="mt-2 block text-xs font-semibold text-accent-strong">{o.technician_name}</span>
                         )}

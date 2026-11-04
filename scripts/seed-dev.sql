@@ -35,4 +35,5 @@ select id, client_id, '2026-10-20', 'No funciona', 'Pedalera, cable de línea, p
 insert into repair_orders (equipment_id, client_id, received_at, reported_fault, technician_id)
 select id, client_id, '2026-11-02', 'Service anual', '00000000-0000-4000-8000-000000000002' from equipment where serial = 'G71028';
 update repair_orders set status = 'reparado' where reported_fault = 'Service anual';
+select set_config('nyb.auto_status','1',false);
 update equipment set status = 'en_taller' where serial in ('SK00713063','110725116269','361200','G71028');

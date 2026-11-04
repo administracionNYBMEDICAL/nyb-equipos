@@ -74,7 +74,7 @@ export async function updateOrderAction(orderId: string, receivedAt: string, _: 
   if (Number.isNaN(budgetCents)) errors.budget = "Escribí solo el número, por ejemplo 100.000";
   if (Number.isNaN(costCents)) errors.cost = "Escribí solo el número, por ejemplo 100.000";
   if (values.deliveredAt && values.deliveredAt < receivedAt) errors.deliveredAt = "La salida no puede ser antes del ingreso.";
-  if (Object.keys(errors).length || !parsed.success) return { errors, values, message: "Revisá los campos marcados." };
+  if (Object.keys(errors).length || !parsed.success) return { errors, values, message: "Revisá los campos marcados.", stamp: Date.now() };
 
   const d = parsed.data;
   const equipmentId = await updateRepairOrder(staff.id, orderId, {
@@ -91,5 +91,5 @@ export async function updateOrderAction(orderId: string, receivedAt: string, _: 
   revalidatePath(`/taller/${orderId}`);
   revalidatePath("/taller");
   revalidatePath(`/equipos/${equipmentId}`);
-  return { message: "Orden guardada.", values };
+  return { message: "Orden guardada.", values, stamp: Date.now() };
 }
