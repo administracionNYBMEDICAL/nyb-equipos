@@ -4,6 +4,7 @@ import { requireStaff } from "@/lib/auth";
 import { dashboardStats, listOpenOrders } from "@/lib/data";
 import { ButtonLink, Card, EcgLine, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { daysSince } from "@/lib/format";
+import { StatusDonut } from "@/components/status-donut";
 
 export const metadata: Metadata = { title: "Panel" };
 
@@ -41,7 +42,12 @@ export default async function Dashboard() {
         <Stat label="Reportes QR nuevos" value={s.new_tickets} href="/reportes" tone="warning" />
       </div>
 
-      <Card className="mt-6">
+      <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,380px)_1fr]">
+      <Card className="p-5">
+        <h2 className="mb-4 text-lg font-semibold">Estado de los equipos</h2>
+        <StatusDonut counts={s.by_status} />
+      </Card>
+      <Card>
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-lg font-semibold">Hace más tiempo en el taller</h2>
           <Link href="/taller" className="text-sm font-semibold text-accent-strong">Ver tablero</Link>
@@ -69,6 +75,7 @@ export default async function Dashboard() {
           </ul>
         )}
       </Card>
+      </div>
     </>
   );
 }

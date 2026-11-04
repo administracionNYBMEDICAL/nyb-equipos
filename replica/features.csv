@@ -1,7 +1,7 @@
 feature,area,priority,original,clone,notes
 Login de usuarios de la institución,auth,must,yes,yes,S01 · Supabase Auth email + contraseña
 Multi-institución con datos aislados,auth,must,yes,skip,uso interno: una sola organización (NYB)
-Alta y edición de equipo con marca modelo serial UMDNS servicio edificio estado,inventario,must,yes,partial,alta y estado listos; falta editar datos de un equipo cargado
+Alta y edición de equipo con marca modelo serial UMDNS servicio edificio estado,inventario,must,yes,yes,"alta, edición con ""Más datos"" plegable; cada cambio queda en la actividad"
 Inventario multimarca con búsqueda y filtros,inventario,must,yes,yes,S03 · búsqueda + filtro cliente/estado; tarjetas en celular
 Estados del equipo: operativo / no operativo / pendiente / dado de baja,inventario,must,yes,yes,"operativo, no operativo, en taller, faltante, dado de baja"
 Clientes con sus edificios y servicios,inventario,must,yes,partial,se crean al cargar el equipo; falta la pantalla de clientes
@@ -25,11 +25,11 @@ Traslado con historial de ubicación,hoja de vida,should,yes,no,F07
 Baja con motivo,hoja de vida,should,yes,yes,motivo obligatorio; la ficha QR deja de mostrarse
 Informes de mantenimientos realizados / programados / vencidos,informes,should,yes,no,S16
 Exportar listados de mantenimientos y datos del equipo,informes,should,yes,no,
-Gráficos por período y % operativo,dashboard,should,yes,no,S02
-Fechas de fabricación / compra / garantía y nº de patrimonio,inventario,should,yes,no,
+Gráficos por período y % operativo,dashboard,should,yes,partial,dona de estado del parque en el panel; faltan gráficos por período
+Fechas de fabricación / compra / garantía y nº de patrimonio,inventario,should,yes,yes,+ condición (propio/comodato/alquiler) y clase de riesgo
 Gestión de usuarios con roles admin / técnico,config,could,yes,partial,roles en la base; el alta de usuarios se hace en Supabase
 Límites por plan (equipos / usuarios / edificios / GB),config,could,yes,skip,sin planes: herramienta interna
-Adjuntos por equipo (manuales / certificados),hoja de vida,could,yes,no,inferido por el límite en GB
+Adjuntos por equipo (manuales / certificados),hoja de vida,could,yes,partial,foto del equipo (achicada en el navegador); faltan PDFs
 API de exportación e importación,integraciones,could,yes,no,sin docs públicas
 Interfaz en español e inglés,general,could,yes,skip,solo español
 Prueba gratuita de 60 días,billing,could,yes,skip,sin planes: herramienta interna
@@ -42,3 +42,5 @@ Importar la planilla EQUIPAMIENTO EN REPARACIÓN - NYB,taller,must,no,no,agregad
 Repuestos cambiados por reparación y si se devolvieron al cliente,taller,should,no,no,agregado NYB
 Préstamo de equipos (loaners) a clientes,taller,should,no,no,agregado NYB
 Certificado de seguridad eléctrica por equipo,mantenimiento,should,no,no,agregado NYB
+Cambiar la etiqueta QR si se pierde,qr,should,yes,yes,token nuevo; el anterior deja de abrir la ficha; queda en la actividad
+Estado Esperando repuesto en el taller,taller,should,no,yes,columna propia en el tablero

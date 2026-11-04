@@ -16,3 +16,11 @@ Prueba de punta a punta: `scripts/e2e` (Playwright) sobre Postgres 16 con la mig
 | S10 Taller (tablero) | 2026-11-04 | listo | — | — |
 | S11 Ingreso / orden | 2026-11-04 | listo | repuestos por orden | React 19 reinicia los formularios al enviar: los selectores de estado tuvieron que pasar a no controlados |
 | Preventivos, reportes, préstamos, clientes, informes | — | pendiente | etapas 2 a 5 de architecture.md | — |
+| S06 Ficha con pestañas (Actividad · Taller · Datos) | 2026-11-04 | listo | archivos PDF, preventivos | — |
+| S04 Editar equipo + "Más datos" | 2026-11-04 | listo | — | la actividad anota qué campos cambiaron (trigger en la base) |
+| Foto del equipo | 2026-11-04 | listo | — | se achica en el navegador (1280 px, JPEG) para no superar el límite de envío |
+| Cambiar QR | 2026-11-04 | listo | — | — |
+| S02 Panel con dona de estado | 2026-11-04 | listo | gráficos por período | — |
+| Estado "Esperando repuesto" | 2026-11-04 | listo | — | — |
+
+Prueba de punta a punta: 52/52 OK, sin errores de consola (`scripts/reset-dev-db.sh` y `scripts/e2e.py`).

@@ -19,7 +19,7 @@ with sync_playwright() as p:
 
     # Panel
     page.goto(BASE + "/")
-    check("panel muestra 'En taller' = 4", page.get_by_role("link", name=re.compile("En taller")).inner_text().strip().endswith("4"))
+    check("panel muestra 'En taller' = 4", page.locator("a[href='/taller']", has_text="En taller").first.inner_text().strip().endswith("4"))
     page.screenshot(path=f"{SHOTS}/S02-panel.png", full_page=True)
 
     # Validación: formulario vacío
@@ -172,6 +172,90 @@ with sync_playwright() as p:
     token_href = page.get_by_role("link", name=re.compile("Ver lo que ve el cliente")).get_attribute("href")
     page.goto(BASE + token_href)
     check("QR de equipo dado de baja no muestra la ficha", "No encontramos este equipo" in page.inner_text("body"))
+
+    # ---------- Etapa 2: ficha con pestañas, editar, foto, cambiar QR, estado nuevo, gráfico ----------
+    page.goto(eq_url + "/editar")
+    page.get_by_text("Más datos (opcional)").click()
+    page.get_by_label("Modelo").fill("Graph NEO")
+    page.get_by_label("Condición").select_option("comodato")
+    page.get_by_label("Clase de riesgo").select_option("Clase III")
+    page.get_by_label("Garantía hasta").fill("2027-06-30")
+    page.get_by_label("Fecha de fabricación").fill("2020-01-10")
+    page.get_by_label("Fecha de compra").fill("2019-12-01")
+    page.get_by_role("button", name="Guardar cambios").click()
+    expect(page.get_by_text("La compra no puede ser antes de la fabricación.")).to_be_visible()
+    check("editar: valida compra anterior a fabricación y conserva lo escrito", page.get_by_label("Modelo").input_value() == "Graph NEO")
+    page.get_by_label("Fecha de compra").fill("2020-03-01")
+    page.get_by_role("button", name="Guardar cambios").click()
+    page.wait_for_url(re.compile(r"tab=datos&guardado=1"))
+    datos = page.inner_text("main")
+    check("editar: datos guardados (comodato, clase III, garantía)", "En comodato" in datos and "Clase III" in datos and "30/06/2027" in datos)
+    page.goto(eq_url + "?tab=actividad")
+    act = page.inner_text("main")
+    check("editar: actividad anota los campos cambiados", "Datos editados: modelo, condición, clasificación, fecha de fabricación, fecha de compra, garantía" in act)
+
+    # Foto: se achica en el navegador antes de subir
+    from PIL import Image
+    big = "/tmp/claude-0/foto-prueba.png"
+    import os; os.makedirs("/tmp/claude-0", exist_ok=True)
+    Image.new("RGB", (3000, 2000), (40, 120, 140)).save(big)
+    page.goto(eq_url + "?tab=datos")
+    page.set_input_files("#photo-input", big)
+    expect(page.get_by_text("Foto guardada.")).to_be_visible(timeout=15000)
+    page.reload()
+    w = page.evaluate("(() => { const i = document.querySelector('header img'); return i && i.complete ? i.naturalWidth : 0 })()")
+    check(f"foto: se muestra y quedó achicada ({w}px de ancho)", 0 < w <= 1280)
+    page.goto(eq_url)
+    check("foto: anotada en la actividad", "Se agregó la foto del equipo" in page.inner_text("main"))
+    anon = b.new_context()
+    r = anon.request.get(eq_url.replace(BASE, BASE) + "/foto")
+    # en modo local sin Supabase la sesión es fija, así que solo se verifica que responda imagen
+    check("foto: la ruta devuelve una imagen", r.headers.get("content-type", "").startswith("image/"))
+    anon.close()
+
+    # Cambiar QR
+    page.goto(eq_url)
+    old_href = page.get_by_role("link", name=re.compile("Ver lo que ve el cliente")).get_attribute("href")
+    page.get_by_text("Cambiar QR").click()
+    page.get_by_role("button", name="Generar QR nuevo").click()
+    expect(page.get_by_text("Marcá la casilla para confirmar.")).to_be_visible()
+    check("cambiar QR: pide confirmación", True)
+    if not page.get_by_label("Entiendo que la etiqueta pegada hoy deja de abrir la ficha").is_visible():
+        page.get_by_text("Cambiar QR").click()
+    page.get_by_label("Entiendo que la etiqueta pegada hoy deja de abrir la ficha").check()
+    page.get_by_role("button", name="Generar QR nuevo").click()
+    expect(page.get_by_text("Listo: imprimí la etiqueta nueva.")).to_be_visible()
+    page.reload()
+    new_href = page.get_by_role("link", name=re.compile("Ver lo que ve el cliente")).get_attribute("href")
+    check("cambiar QR: el token cambió", new_href != old_href)
+    page.goto(BASE + old_href)
+    check("cambiar QR: la etiqueta vieja ya no abre la ficha", "No encontramos este equipo" in page.inner_text("body"))
+    page.goto(BASE + new_href)
+    check("cambiar QR: la nueva sí", "Respirador de Terapia" in page.inner_text("body"))
+    page.goto(eq_url)
+    check("cambiar QR: anotado en la actividad", "Se generó una etiqueta QR nueva" in page.inner_text("main"))
+
+    # Estado nuevo del taller
+    page.goto(BASE + "/taller")
+    check("taller: columna Esperando repuesto", page.get_by_role("heading", name="Esperando repuesto").count() == 1)
+    page.locator("a[href^='/taller/']").filter(has_text="Humidificador").first.click()
+    page.wait_for_url(re.compile(r"/taller/[0-9a-f-]{36}$"))
+    page.get_by_label("Estado", exact=True).select_option("esperando_repuesto")
+    page.get_by_role("button", name="Guardar cambios").click()
+    expect(page.get_by_text("Orden guardada.")).to_be_visible()
+    page.goto(BASE + "/taller")
+    col = page.get_by_role("region", name="Esperando repuesto").inner_text()
+    check("taller: la orden pasó a Esperando repuesto", "Humidificador" in col)
+
+    # Panel con gráfico
+    page.goto(BASE + "/")
+    check("panel: gráfico del estado de los equipos", page.get_by_role("img", name=re.compile(r"% de los equipos operativos")).is_visible())
+    page.screenshot(path=f"{SHOTS}/S02-panel.png", full_page=True)
+    page.goto(eq_url + "?tab=datos")
+    page.screenshot(path=f"{SHOTS}/S06-ficha-datos.png", full_page=True)
+    m.goto(eq_url)
+    check("ficha celular sin scroll horizontal", m.evaluate("document.documentElement.scrollWidth") <= 390)
+    m.screenshot(path=f"{SHOTS}/S06-ficha-celular.png", full_page=True)
 
     # Teclado: llegar al botón principal con Tab
     page.goto(BASE + "/equipos/nuevo")

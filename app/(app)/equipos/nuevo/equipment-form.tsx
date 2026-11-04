@@ -2,20 +2,72 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { ChevronDown } from "lucide-react";
 import { createEquipmentAction, type FormState } from "../actions";
-import { Alert, Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Alert, Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 
-export function EquipmentForm({ clients, sites, types }: { clients: string[]; sites: string[]; types: string[] }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(createEquipmentAction, {});
-  const v = state.values ?? {};
+type Action = (state: FormState, form: FormData) => Promise<FormState>;
+
+const MORE_FIELDS = ["umdnsCode", "condition", "classification", "manufacturedOn", "purchasedOn", "warrantyUntil"];
+
+export function EquipmentForm({
+  clients,
+  sites,
+  types,
+  initial = {},
+  action = createEquipmentAction,
+  mode = "create",
+  cancelHref = "/equipos",
+}: {
+  clients: string[];
+  sites: string[];
+  types: string[];
+  initial?: Record<string, string>;
+  action?: Action;
+  mode?: "create" | "edit";
+  cancelHref?: string;
+}) {
+  const [state, formAction, pending] = useActionState<FormState, FormData>(action, {});
+  // key: con cada respuesta del servidor el formulario se arma con los valores devueltos
+  return (
+    <Inner
+      key={state.stamp ?? 0}
+      {...{ state, formAction, pending, clients, sites, types, mode, cancelHref }}
+      v={{ ...initial, ...(state.values ?? {}) }}
+    />
+  );
+}
+
+function Inner({
+  state,
+  formAction,
+  pending,
+  clients,
+  sites,
+  types,
+  mode,
+  cancelHref,
+  v,
+}: {
+  state: FormState;
+  formAction: (f: FormData) => void;
+  pending: boolean;
+  clients: string[];
+  sites: string[];
+  types: string[];
+  mode: "create" | "edit";
+  cancelHref: string;
+  v: Record<string, string>;
+}) {
   const err = state.errors ?? {};
   const a11y = (name: string) => ({
     "aria-invalid": err[name] ? true : undefined,
     "aria-describedby": err[name] ? `${name}-error` : undefined,
   });
+  const moreOpen = MORE_FIELDS.some((k) => v[k] || err[k]);
 
   return (
-    <form action={action} className="flex flex-col gap-5" noValidate>
+    <form action={formAction} className="flex flex-col gap-5" noValidate>
       {state.message && (
         <Alert>
           {state.message}{" "}
@@ -46,10 +98,44 @@ export function EquipmentForm({ clients, sites, types }: { clients: string[]; si
           <Field label="Nº de patrimonio del hospital" htmlFor="assetNumber" error={err.assetNumber}>
             <Input id="assetNumber" name="assetNumber" defaultValue={v.assetNumber} {...a11y("assetNumber")} />
           </Field>
-          <Field label="Código UMDNS" htmlFor="umdnsCode" hint="Opcional" error={err.umdnsCode}>
-            <Input id="umdnsCode" name="umdnsCode" inputMode="numeric" defaultValue={v.umdnsCode} {...a11y("umdnsCode")} />
-          </Field>
         </div>
+
+        <details open={moreOpen} className="group mt-5 rounded-md border border-border">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-semibold text-accent-strong">
+            Más datos (opcional)
+            <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="grid gap-4 border-t border-border p-4 sm:grid-cols-3">
+            <Field label="Condición" htmlFor="condition" error={err.condition}>
+              <Select id="condition" name="condition" defaultValue={v.condition ?? ""}>
+                <option value="">Sin indicar</option>
+                <option value="propio">Propio del hospital</option>
+                <option value="comodato">En comodato</option>
+                <option value="alquiler">Alquilado</option>
+              </Select>
+            </Field>
+            <Field label="Clase de riesgo" htmlFor="classification" error={err.classification}>
+              <Select id="classification" name="classification" defaultValue={v.classification ?? ""}>
+                <option value="">Sin indicar</option>
+                {["Clase I", "Clase II", "Clase III", "Clase IV"].map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Código UMDNS" htmlFor="umdnsCode" error={err.umdnsCode}>
+              <Input id="umdnsCode" name="umdnsCode" inputMode="numeric" defaultValue={v.umdnsCode} {...a11y("umdnsCode")} />
+            </Field>
+            <Field label="Fecha de fabricación" htmlFor="manufacturedOn" error={err.manufacturedOn}>
+              <Input id="manufacturedOn" name="manufacturedOn" type="date" defaultValue={v.manufacturedOn} {...a11y("manufacturedOn")} />
+            </Field>
+            <Field label="Fecha de compra" htmlFor="purchasedOn" error={err.purchasedOn}>
+              <Input id="purchasedOn" name="purchasedOn" type="date" defaultValue={v.purchasedOn} {...a11y("purchasedOn")} />
+            </Field>
+            <Field label="Garantía hasta" htmlFor="warrantyUntil" error={err.warrantyUntil}>
+              <Input id="warrantyUntil" name="warrantyUntil" type="date" defaultValue={v.warrantyUntil} {...a11y("warrantyUntil")} />
+            </Field>
+          </div>
+        </details>
       </Card>
 
       <Card className="p-5">
@@ -79,16 +165,20 @@ export function EquipmentForm({ clients, sites, types }: { clients: string[]; si
       </Card>
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <label className="flex min-h-11 items-center gap-2 text-sm font-medium">
-          <input type="checkbox" name="ingresar" defaultChecked className="size-5 accent-[var(--color-accent-strong)]" />
-          Registrar el ingreso al taller a continuación
-        </label>
+        {mode === "create" ? (
+          <label className="flex min-h-11 items-center gap-2 text-sm font-medium">
+            <input type="checkbox" name="ingresar" defaultChecked className="size-5 accent-[var(--color-accent-strong)]" />
+            Registrar el ingreso al taller a continuación
+          </label>
+        ) : (
+          <p className="text-sm text-muted">Los cambios quedan anotados en la hoja de vida, con tu nombre.</p>
+        )}
         <div className="flex gap-2">
-          <Link href="/equipos" className="inline-flex h-12 items-center px-4 text-sm font-semibold text-accent-strong">
+          <Link href={cancelHref} className="inline-flex h-12 items-center px-4 text-sm font-semibold text-accent-strong">
             Cancelar
           </Link>
           <Button type="submit" size="lg" disabled={pending} aria-busy={pending}>
-            {pending ? "Guardando…" : "Guardar equipo"}
+            {pending ? "Guardando…" : mode === "create" ? "Guardar equipo" : "Guardar cambios"}
           </Button>
         </div>
       </div>

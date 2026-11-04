@@ -38,6 +38,8 @@
   --color-violet-soft: #eee8f8;
   --color-neutral: #4d646f;
   --color-neutral-soft: #e8eef0;
+  --color-orange: #9a4400;
+  --color-orange-soft: #fdecdf;
   --color-muted: #4d646f;
 }
 
@@ -83,6 +85,7 @@
 .status-equipment-baja { color: var(--color-neutral); background: var(--color-neutral-soft); }
 .status-repair-en_revision { color: var(--color-info); background: var(--color-info-soft); }
 .status-repair-presupuestado { color: var(--color-warning); background: var(--color-warning-soft); }
+.status-repair-esperando_repuesto { color: var(--color-orange); background: var(--color-orange-soft); }
 .status-repair-en_reparacion { color: var(--color-accent-strong); background: var(--color-accent-soft); }
 .status-repair-reparado { color: var(--color-success); background: var(--color-success-soft); }
 .status-repair-entregado { color: var(--color-neutral); background: var(--color-neutral-soft); }

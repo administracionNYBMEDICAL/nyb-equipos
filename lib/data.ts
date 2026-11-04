@@ -4,6 +4,7 @@ import { asAnon, asUser, type Tx } from "./db";
 import {
   EQUIPMENT_STATUS_FOR_REPAIR,
   OPEN_REPAIR_STATUSES,
+  OPEN_SQL,
   type EquipmentStatus,
   type RepairStatus,
 } from "./status";
@@ -67,9 +68,14 @@ export type EquipmentDetail = EquipmentRow & {
   status_reason: string | null;
   manufactured_on: string | null;
   warranty_until: string | null;
+  purchased_on: string | null;
+  condition: "propio" | "comodato" | "alquiler" | null;
+  classification: string | null;
   notes: string | null;
   owner: "cliente" | "nyb";
   created_at: string;
+  has_photo: boolean;
+  photo_version: string | null;
   history: HistoryEntry[];
   orders: RepairOrder[];
 };
@@ -104,7 +110,7 @@ export async function listEquipment(
       `select e.id, e.code, e.equipment_type, e.brand, e.model, e.serial, e.status, e.sector,
               c.name as client_name, s.name as site_name,
               (select ro.status from repair_orders ro where ro.equipment_id = e.id
-                 and ro.status in ('en_revision','presupuestado','en_reparacion','reparado') limit 1) as open_order_status,
+                 and ro.status in (${OPEN_SQL}) limit 1) as open_order_status,
               (select max(h.created_at) from history_entries h where h.equipment_id = e.id) as last_activity
          from equipment e
          left join clients c on c.id = e.client_id
@@ -162,14 +168,17 @@ export async function dashboardStats(uid: string) {
   return asUser(uid, async (tx) => {
     const r = await tx.query(
       `select
-         (select count(*)::int from repair_orders where status in ('en_revision','presupuestado','en_reparacion','reparado')) as in_shop,
+         (select count(*)::int from repair_orders where status in (${OPEN_SQL})) as in_shop,
          (select count(*)::int from repair_orders where status = 'reparado') as ready,
          (select count(*)::int from maintenance_status where due_state = 'vencido') as overdue,
          (select count(*)::int from maintenance_status where due_state = 'por_vencer') as due_soon,
          (select count(*)::int from tickets where status = 'nuevo') as new_tickets,
-         (select count(*)::int from equipment where status <> 'baja') as equipment`,
+         (select count(*)::int from equipment where status <> 'baja') as equipment,
+         (select coalesce(jsonb_object_agg(status, n), '{}'::jsonb) from
+            (select status, count(*)::int as n from equipment where status <> 'baja' group by status) x) as by_status`,
     );
     return r.rows[0] as {
+      by_status: Partial<Record<EquipmentStatus, number>>;
       in_shop: number;
       ready: number;
       overdue: number;
@@ -208,6 +217,11 @@ export type NewEquipment = {
   assetNumber?: string;
   umdnsCode?: string;
   notes?: string;
+  condition?: string;
+  classification?: string;
+  manufacturedOn?: string;
+  purchasedOn?: string;
+  warrantyUntil?: string;
 };
 
 const blank = (s?: string | null) => (s && s.trim() ? s.trim() : null);
@@ -217,8 +231,9 @@ export async function createEquipment(uid: string, input: NewEquipment): Promise
     const clientId = await resolveClient(tx, input.clientName);
     const siteId = blank(input.siteName) ? await resolveSite(tx, clientId, input.siteName!) : null;
     const r = await tx.query(
-      `insert into equipment (client_id, site_id, sector, equipment_type, brand, model, serial, asset_number, umdns_code, notes)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id, code`,
+      `insert into equipment (client_id, site_id, sector, equipment_type, brand, model, serial, asset_number, umdns_code, notes,
+                              condition, classification, manufactured_on, purchased_on, warranty_until)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) returning id, code`,
       [
         clientId,
         siteId,
@@ -230,9 +245,91 @@ export async function createEquipment(uid: string, input: NewEquipment): Promise
         blank(input.assetNumber),
         blank(input.umdnsCode),
         blank(input.notes),
+        blank(input.condition),
+        blank(input.classification),
+        blank(input.manufacturedOn),
+        blank(input.purchasedOn),
+        blank(input.warrantyUntil),
       ],
     );
     return r.rows[0];
+  });
+}
+
+/** Edita los datos de un equipo. La hoja de vida anota sola qué cambió (y si cambió de ubicación). */
+export async function updateEquipment(uid: string, id: string, input: NewEquipment): Promise<void> {
+  return asUser(uid, async (tx) => {
+    const clientId = await resolveClient(tx, input.clientName);
+    const siteId = blank(input.siteName) ? await resolveSite(tx, clientId, input.siteName!) : null;
+    const r = await tx.query(
+      `update equipment set client_id = $2, site_id = $3, sector = $4, equipment_type = $5, brand = $6, model = $7,
+              serial = $8, asset_number = $9, umdns_code = $10, notes = $11, condition = $12, classification = $13,
+              manufactured_on = $14, purchased_on = $15, warranty_until = $16
+        where id = $1`,
+      [
+        id,
+        clientId,
+        siteId,
+        blank(input.sector),
+        input.equipmentType.trim(),
+        blank(input.brand),
+        blank(input.model),
+        blank(input.serial),
+        blank(input.assetNumber),
+        blank(input.umdnsCode),
+        blank(input.notes),
+        blank(input.condition),
+        blank(input.classification),
+        blank(input.manufacturedOn),
+        blank(input.purchasedOn),
+        blank(input.warrantyUntil),
+      ],
+    );
+    if (r.rowCount === 0) throw new Error("Equipo inexistente");
+  });
+}
+
+/** Etiqueta perdida o dañada: nuevo QR; el anterior deja de abrir la ficha. */
+export async function regenerateQr(uid: string, id: string): Promise<void> {
+  return asUser(uid, async (tx) => {
+    const r = await tx.query(
+      `update equipment set qr_token = translate(encode(gen_random_bytes(9), 'base64'), '+/', '-_') where id = $1`,
+      [id],
+    );
+    if (r.rowCount === 0) throw new Error("Equipo inexistente");
+    await tx.query(
+      `insert into history_entries (equipment_id, type, summary, created_by, created_by_name)
+       values ($1, 'qr', 'Se generó una etiqueta QR nueva; la anterior dejó de funcionar', auth.uid(), current_signature())`,
+      [id],
+    );
+  });
+}
+
+// ---------- Foto ----------
+
+export async function setPhoto(uid: string, id: string, mime: string, data: Buffer): Promise<void> {
+  return asUser(uid, async (tx) => {
+    const had = (await tx.query("select 1 from equipment_photos where equipment_id = $1", [id])).rowCount;
+    await tx.query(
+      `insert into equipment_photos (equipment_id, mime_type, data, uploaded_by, updated_at)
+       values ($1, $2, $3, auth.uid(), now())
+       on conflict (equipment_id) do update set mime_type = excluded.mime_type, data = excluded.data,
+         uploaded_by = excluded.uploaded_by, updated_at = now()`,
+      [id, mime, data],
+    );
+    await tx.query(
+      `insert into history_entries (equipment_id, type, summary, created_by, created_by_name)
+       values ($1, 'foto', $2, auth.uid(), current_signature())`,
+      [id, had ? "Se cambió la foto del equipo" : "Se agregó la foto del equipo"],
+    );
+  });
+}
+
+export async function getPhoto(uid: string, id: string): Promise<{ mime: string; data: Buffer } | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  return asUser(uid, async (tx) => {
+    const r = await tx.query("select mime_type, data from equipment_photos where equipment_id = $1", [id]);
+    return r.rows[0] ? { mime: r.rows[0].mime_type, data: r.rows[0].data } : null;
   });
 }
 
@@ -247,9 +344,10 @@ export async function getEquipment(uid: string, id: string): Promise<EquipmentDe
   return asUser(uid, async (tx) => {
     const r = await tx.query(
       `select e.*, c.name as client_name, s.name as site_name,
-              to_char(e.manufactured_on,'YYYY-MM-DD') as manufactured_on,
-              to_char(e.warranty_until,'YYYY-MM-DD') as warranty_until
+              (p.equipment_id is not null) as has_photo,
+              extract(epoch from p.updated_at)::bigint::text as photo_version
          from equipment e left join clients c on c.id = e.client_id left join sites s on s.id = e.site_id
+         left join equipment_photos p on p.equipment_id = e.id
         where e.id = $1`,
       [id],
     );
@@ -311,7 +409,7 @@ export async function listOpenOrders(uid: string): Promise<OpenOrderCard[]> {
          join equipment e on e.id = ro.equipment_id
          left join sites s on s.id = e.site_id
          left join staff st on st.id = ro.technician_id
-        where ro.status in ('en_revision','presupuestado','en_reparacion','reparado')
+        where ro.status in (${OPEN_SQL})
         order by ro.received_at asc, ro.number asc`,
     );
     return r.rows.map((o) => normalizeOrder(o) as OpenOrderCard);
@@ -334,7 +432,7 @@ export async function createRepairOrder(uid: string, input: NewRepairOrder): Pro
     const eq = await tx.query("select client_id, owner from equipment where id = $1", [input.equipmentId]);
     if (!eq.rows[0]) throw new Error("Equipo inexistente");
     const open = await tx.query(
-      "select number from repair_orders where equipment_id = $1 and status in ('en_revision','presupuestado','en_reparacion','reparado')",
+      `select number from repair_orders where equipment_id = $1 and status in (${OPEN_SQL})`,
       [input.equipmentId],
     );
     if (open.rows[0]) throw new OpenOrderExists(open.rows[0].number);

@@ -26,7 +26,7 @@ export default async function TallerPage() {
         </Card>
       ) : (
         <div className="-mx-4 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
-          <div className="grid min-w-[880px] grid-cols-4 gap-3">
+          <div className="grid min-w-[1080px] grid-cols-5 gap-3">
             {OPEN_REPAIR_STATUSES.map((st) => {
               const col = orders.filter((o) => o.status === st);
               return (

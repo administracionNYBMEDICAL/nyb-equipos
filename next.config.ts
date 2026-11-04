@@ -4,6 +4,8 @@ import type { NextConfig } from "next";
 // Cache Components ni prefetch parcial (pensados para páginas públicas cacheables).
 const nextConfig: NextConfig = {
   cacheComponents: false,
+  // fotos de equipos: se comprimen en el navegador (≈300 KB), 2 MB deja margen
+  experimental: { serverActions: { bodySizeLimit: "2mb" } },
   turbopack: {
     rules: {
       "*.css": {
