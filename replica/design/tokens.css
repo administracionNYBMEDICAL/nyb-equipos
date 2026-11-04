@@ -1,0 +1,79 @@
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f4f7f8;
+  --color-surface-2: #e8eef0;
+  --color-border: #dbe3e6;
+  --color-border-input: #7b8d95;
+  --color-text: #0f2e3d;
+  --color-text-muted: #4d646f;
+  --color-brand: #0f2e3d;
+  --color-on-brand: #ffffff;
+  --color-brand-muted: #a9bcc4;
+  --color-brand-hover: #16404f;
+  --color-accent: #3fb8af;
+  --color-on-accent: #0f2e3d;
+  --color-accent-strong: #2a7a7c;
+  --color-on-accent-strong: #ffffff;
+  --color-accent-soft: #ecf8f6;
+  --color-celeste: #74acdf;
+  --color-focus: #2a7a7c;
+  --color-success: #1d7a4c;
+  --color-success-soft: #e2f3ea;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fdf1d6;
+  --color-danger: #b42828;
+  --color-danger-soft: #fbe5e5;
+  --color-info: #1f5f8b;
+  --color-info-soft: #e2eef7;
+  --color-violet: #6342a8;
+  --color-violet-soft: #eee8f8;
+  --color-neutral: #4d646f;
+  --color-neutral-soft: #e8eef0;
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-xs: 12px; --leading-xs: 16px; --weight-xs: 500;
+  --text-sm: 14px; --leading-sm: 20px; --weight-sm: 400;
+  --text-base: 16px; --leading-base: 24px; --weight-base: 400;
+  --text-lg: 20px; --leading-lg: 28px; --weight-lg: 600;
+  --text-xl: 28px; --leading-xl: 34px; --weight-xl: 700;
+  --text-display: 40px; --leading-display: 44px; --weight-display: 700;
+  --text-eyebrow: 12px; --leading-eyebrow: 16px; --weight-eyebrow: 600;
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(15,46,61,.06), 0 1px 3px rgba(15,46,61,.10);
+  --shadow-pop: 0 12px 32px rgba(15,46,61,.18);
+  --motion-fast: 120ms; --motion-base: 200ms; --ease: cubic-bezier(.2,.8,.2,1);
+  --layout-sidebar: 248px;
+  --layout-header: 56px;
+  --layout-content-max: 1200px;
+  --layout-qr-card-max: 480px;
+  --layout-tap-min: 44px;
+}
+
+/* Badges de estado: clase .status-<grupo>-<estado> */
+.status-equipment-operativo { color: var(--color-success); background: var(--color-success-soft); }
+.status-equipment-no_operativo { color: var(--color-danger); background: var(--color-danger-soft); }
+.status-equipment-en_taller { color: var(--color-info); background: var(--color-info-soft); }
+.status-equipment-faltante { color: var(--color-violet); background: var(--color-violet-soft); }
+.status-equipment-baja { color: var(--color-neutral); background: var(--color-neutral-soft); }
+.status-repair-en_revision { color: var(--color-info); background: var(--color-info-soft); }
+.status-repair-presupuestado { color: var(--color-warning); background: var(--color-warning-soft); }
+.status-repair-en_reparacion { color: var(--color-accent-strong); background: var(--color-accent-soft); }
+.status-repair-reparado { color: var(--color-success); background: var(--color-success-soft); }
+.status-repair-entregado { color: var(--color-neutral); background: var(--color-neutral-soft); }
+.status-repair-faltante { color: var(--color-violet); background: var(--color-violet-soft); }
+.status-repair-sin_reparacion { color: var(--color-danger); background: var(--color-danger-soft); }
+.status-maintenance-vencido { color: var(--color-danger); background: var(--color-danger-soft); }
+.status-maintenance-por_vencer { color: var(--color-warning); background: var(--color-warning-soft); }
+.status-maintenance-al_dia { color: var(--color-success); background: var(--color-success-soft); }

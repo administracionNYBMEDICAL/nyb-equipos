@@ -1,0 +1,44 @@
+feature,area,priority,original,clone,notes
+Login de usuarios de la institución,auth,must,yes,no,S01
+Multi-institución con datos aislados,auth,must,yes,skip,uso interno: una sola organización (NYB)
+Alta y edición de equipo con marca modelo serial UMDNS servicio edificio estado,inventario,must,yes,no,S04
+Inventario multimarca con búsqueda y filtros,inventario,must,yes,no,S03; filtros inferidos
+Estados del equipo: operativo / no operativo / pendiente / dado de baja,inventario,must,yes,no,recurso trazabilidad
+Clientes con sus edificios y servicios,inventario,must,yes,no,Institution -> Client para NYB
+Código QR único por equipo y etiqueta imprimible,qr,must,yes,no,S07
+Ficha móvil al escanear el QR con próximo preventivo,qr,must,yes,no,S08
+Hoja de vida con historial fechado y firmado por usuario,hoja de vida,must,yes,no,S06; append-only
+Reportar falla desde el celular vía QR sin cuenta,tickets,must,yes,no,S09
+Ticket de falla con orden de trabajo asociada,tickets,must,yes,no,S10 S11
+Asignar responsable y registrar intervenciones con estado,tickets,must,yes,no,estados no publicados
+Programar preventivo con periodicidad responsable y fecha límite,mantenimiento,must,yes,no,S12
+Ejecutar preventivo y reprogramar el siguiente automáticamente,mantenimiento,must,yes,no,S13
+Marcar vencidos y alerta de mantenimiento fuera de término,mantenimiento,must,yes,no,badge Vencido
+Panel con operativos / vencidos / órdenes que requieren acción,dashboard,must,yes,no,S02
+Directorio de proveedores vinculado a equipos,proveedores,must,yes,skip,uso interno: NYB es el proveedor; repuestos se anotan por orden
+Plantillas de preventivo tipo checklist (sí/no y numérico),mantenimiento,should,yes,no,S14
+Criterios de aceptación en ítems numéricos,mantenimiento,should,yes,no,
+Versionado de plantillas con historial de uso,mantenimiento,should,yes,no,
+Aviso previo al vencimiento de un preventivo,mantenimiento,should,yes,no,canal no publicado (email inferido)
+Importación masiva del parque por archivo,inventario,should,yes,no,S05
+Traslado con historial de ubicación,hoja de vida,should,yes,no,F07
+Baja con motivo,hoja de vida,should,yes,no,F07
+Informes de mantenimientos realizados / programados / vencidos,informes,should,yes,no,S16
+Exportar listados de mantenimientos y datos del equipo,informes,should,yes,no,
+Gráficos por período y % operativo,dashboard,should,yes,no,S02
+Fechas de fabricación / compra / garantía y nº de patrimonio,inventario,should,yes,no,
+Gestión de usuarios con roles admin / técnico,config,could,yes,no,2 a 5 usuarios
+Límites por plan (equipos / usuarios / edificios / GB),config,could,yes,skip,sin planes: herramienta interna
+Adjuntos por equipo (manuales / certificados),hoja de vida,could,yes,no,inferido por el límite en GB
+API de exportación e importación,integraciones,could,yes,no,sin docs públicas
+Interfaz en español e inglés,general,could,yes,skip,solo español
+Prueba gratuita de 60 días,billing,could,yes,skip,sin planes: herramienta interna
+Comunidad entre instituciones,comunidad,could,yes,skip,su valor es la red de usuarios; empezaría vacía
+Plan gratis atado a equipos LEEX,billing,could,yes,skip,acuerdo comercial de LEEX
+Carga inicial asistida en el hospital,servicio,could,yes,skip,es un servicio presencial; NYB puede ofrecer el suyo
+Contratación vía asesor por WhatsApp,billing,could,yes,skip,proceso comercial no función
+Ingreso y egreso del equipo al taller con fechas,taller,must,no,no,agregado NYB
+Importar la planilla EQUIPAMIENTO EN REPARACIÓN - NYB,taller,must,no,no,agregado NYB
+Repuestos cambiados por reparación y si se devolvieron al cliente,taller,should,no,no,agregado NYB
+Préstamo de equipos (loaners) a clientes,taller,should,no,no,agregado NYB
+Certificado de seguridad eléctrica por equipo,mantenimiento,should,no,no,agregado NYB
