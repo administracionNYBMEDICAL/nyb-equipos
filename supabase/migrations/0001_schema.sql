@@ -478,3 +478,13 @@ create policy admin_write on staff for all to authenticated using (is_admin()) w
 
 revoke all on all tables in schema public from anon;
 grant execute on function public_equipment_card(text) to anon, authenticated;
+
+-- ---------------------------------------------------------------
+-- Permisos explícitos (no dependemos de "exponer tablas automáticamente").
+-- La app se conecta directo a Postgres y actúa como "authenticated";
+-- las filas que cada uno ve las sigue decidiendo RLS (solo personal activo).
+-- ---------------------------------------------------------------
+grant usage on schema public to authenticated, anon;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+grant select on maintenance_status to authenticated;
