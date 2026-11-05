@@ -3,6 +3,9 @@ import re, sys
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://localhost:3000"
+import datetime, zoneinfo
+TODAY = datetime.datetime.now(zoneinfo.ZoneInfo("America/Argentina/Buenos_Aires")).date()
+TODAY_ISO, TODAY_AR = TODAY.isoformat(), TODAY.strftime("%d/%m/%Y")
 SHOTS = "replica/clone-screens"
 errors, results = [], []
 
@@ -86,7 +89,7 @@ with sync_playwright() as p:
     page.get_by_role("button", name="Guardar cambios").click()
     expect(page.get_by_text("Para marcarlo entregado, cargá la fecha de salida.")).to_be_visible()
     check("entregado sin fecha se rechaza", True)
-    page.get_by_label("Fecha de salida").fill("2026-11-04")
+    page.get_by_label("Fecha de salida").fill(TODAY_ISO)
     page.get_by_label("Remito de entrega").fill("270")
     page.get_by_role("button", name="Guardar cambios").click()
     expect(page.get_by_text("Orden guardada.")).to_be_visible()
@@ -123,7 +126,7 @@ with sync_playwright() as p:
     pub = m.inner_text("body")
     check("QR: muestra tipo, hospital y sector", "Respirador de Terapia" in pub and "Hospital Alende · Pediatría" in pub)
     check("QR: muestra la nota pública", "celda de O2" in pub)
-    check("QR: último servicio = fecha de entrega", re.search(r"Último servicio\s+04/11/2026", pub) is not None)
+    check("QR: último servicio = fecha de entrega", re.search(r"Último servicio\s+" + re.escape(TODAY_AR), pub) is not None)
     check("QR: sin entradas automáticas de estado", "Operativo → En taller" not in pub and "En taller → Operativo" not in pub)
     for secret in ["OFIUKO", "100.000", "202611041", "270", "Juan Manuel", "remito"]:
         check(f"QR: NO muestra '{secret}'", secret not in pub)
