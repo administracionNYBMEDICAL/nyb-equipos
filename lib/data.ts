@@ -457,6 +457,44 @@ export async function createRepairOrder(uid: string, input: NewRepairOrder): Pro
   });
 }
 
+export type IntakeUpdate = { receivedAt: string; pickupRemito?: string; accessoriesIn?: string; reportedFault?: string };
+
+/** Corrige los datos del ingreso de una orden y deja constancia en la hoja de vida. */
+export async function updateRepairIntake(uid: string, id: string, u: IntakeUpdate): Promise<string> {
+  return asUser(uid, async (tx) => {
+    const cur = (
+      await tx.query(
+        "select number, equipment_id, received_at, pickup_remito, accessories_in, reported_fault, delivered_at from repair_orders where id = $1",
+        [id],
+      )
+    ).rows[0];
+    if (!cur) throw new Error("Orden inexistente");
+    const next = {
+      received_at: u.receivedAt,
+      pickup_remito: blank(u.pickupRemito),
+      accessories_in: blank(u.accessoriesIn),
+      reported_fault: blank(u.reportedFault),
+    };
+    const fmt = (d: string) => d.split("-").reverse().join("/");
+    const changes: string[] = [];
+    if (next.received_at !== cur.received_at) changes.push(`fecha de ingreso ${fmt(cur.received_at)} → ${fmt(next.received_at)}`);
+    if (next.pickup_remito !== cur.pickup_remito) changes.push("remito de retiro");
+    if (next.accessories_in !== cur.accessories_in) changes.push("accesorios");
+    if (next.reported_fault !== cur.reported_fault) changes.push("falla");
+    if (changes.length === 0) return cur.equipment_id;
+    await tx.query(
+      "update repair_orders set received_at = $2, pickup_remito = $3, accessories_in = $4, reported_fault = $5 where id = $1",
+      [id, next.received_at, next.pickup_remito, next.accessories_in, next.reported_fault],
+    );
+    await tx.query(
+      `insert into history_entries (equipment_id, type, summary, data, ref_table, ref_id, created_by, created_by_name)
+       values ($1, 'edicion', $2, $3, 'repair_orders', $4, auth.uid(), current_signature())`,
+      [cur.equipment_id, `${cur.number}: se corrigió el ingreso (${changes.join(", ")})`, JSON.stringify({ before: cur, after: next }), id],
+    );
+    return cur.equipment_id;
+  });
+}
+
 export async function getRepairOrder(
   uid: string,
   id: string,

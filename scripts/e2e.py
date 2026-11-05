@@ -260,6 +260,27 @@ with sync_playwright() as p:
     check("ficha celular sin scroll horizontal", m.evaluate("document.documentElement.scrollWidth") <= 390)
     m.screenshot(path=f"{SHOTS}/S06-ficha-celular.png", full_page=True)
 
+    # Corregir la fecha de ingreso de una orden
+    page.goto(BASE + "/taller")
+    page.locator("a[href^='/taller/']").filter(has_text="Electrobisturí").first.click()
+    page.wait_for_url(re.compile(r"/taller/[0-9a-f-]{36}$"))
+    orden_url = page.url
+    page.get_by_text("Corregir datos del ingreso").click()
+    futura = (TODAY + datetime.timedelta(days=3)).isoformat()
+    page.get_by_label("Fecha de ingreso").fill(futura)
+    page.get_by_role("button", name="Guardar corrección").click()
+    expect(page.get_by_text("La fecha de ingreso no puede ser posterior a hoy.")).to_be_visible()
+    check("corregir ingreso: rechaza fecha futura", True)
+    page.get_by_label("Fecha de ingreso").fill("2026-10-15")
+    page.get_by_label("Nº de remito de retiro").fill("41")
+    page.get_by_role("button", name="Guardar corrección").click()
+    expect(page.get_by_text("Datos del ingreso corregidos.")).to_be_visible()
+    body = page.inner_text("main")
+    check("corregir ingreso: muestra la fecha nueva", "15/10/2026" in body)
+    page.get_by_role("link", name=re.compile(r"NYB-\d{6}")).first.click()
+    page.wait_for_url(re.compile(r"/equipos/[0-9a-f-]{36}"))
+    check("corregir ingreso: anotado en la hoja de vida", re.search(r"se corrigió el ingreso \(fecha de ingreso 20/10/2026 → 15/10/2026, remito de retiro\)", page.inner_text("main")) is not None)
+
     # Teclado: llegar al botón principal con Tab
     page.goto(BASE + "/equipos/nuevo")
     page.keyboard.press("Tab")

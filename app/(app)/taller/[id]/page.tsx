@@ -6,6 +6,7 @@ import { getRepairOrder, listStaff } from "@/lib/data";
 import { daysSince, fmtDate, todayAR } from "@/lib/format";
 import { Alert, Card, PageHeader, StatusBadge } from "@/components/ui";
 import { OrderUpdateForm } from "./order-update-form";
+import { IntakeForm } from "./intake-form";
 
 export const metadata: Metadata = { title: "Orden de reparación" };
 
@@ -58,6 +59,17 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/ta
             <Row label="Accesorios">{o.accessories_in ?? "—"}</Row>
             {o.source === "planilla" && <Row label="Origen">Importada de la planilla</Row>}
           </dl>
+          <IntakeForm
+            orderId={o.id}
+            deliveredAt={o.delivered_at}
+            today={todayAR()}
+            initial={{
+              receivedAt: o.received_at,
+              pickupRemito: o.pickup_remito ?? "",
+              accessoriesIn: o.accessories_in ?? "",
+              reportedFault: o.reported_fault ?? "",
+            }}
+          />
         </Card>
         <Card className="p-5">
           <h2 className="mb-4 text-lg font-semibold">Estado y salida</h2>

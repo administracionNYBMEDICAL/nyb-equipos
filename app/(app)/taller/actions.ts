@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaff } from "@/lib/auth";
-import { createRepairOrder, OpenOrderExists, updateRepairOrder } from "@/lib/data";
-import { parseMoney } from "@/lib/format";
+import { createRepairOrder, OpenOrderExists, updateRepairIntake, updateRepairOrder } from "@/lib/data";
+import { parseMoney, todayAR } from "@/lib/format";
 import { REPAIR_STATUSES } from "@/lib/status";
 import type { FormState } from "../equipos/actions";
 
@@ -92,4 +92,28 @@ export async function updateOrderAction(orderId: string, receivedAt: string, _: 
   revalidatePath("/taller");
   revalidatePath(`/equipos/${equipmentId}`);
   return { message: "Orden guardada.", values, stamp: Date.now() };
+}
+
+const Intake = z.object({
+  receivedAt: date,
+  pickupRemito: optText(40),
+  accessoriesIn: optText(500),
+  reportedFault: optText(500),
+});
+
+export async function updateIntakeAction(orderId: string, deliveredAt: string | null, _: FormState, form: FormData): Promise<FormState> {
+  const staff = await requireStaff();
+  const values = Object.fromEntries(Object.keys(Intake.shape).map((k) => [k, String(form.get(k) ?? "")]));
+  const parsed = Intake.safeParse(values);
+  const errors: Record<string, string> = {};
+  if (!parsed.success) for (const i of parsed.error.issues) errors[String(i.path[0])] ??= i.message;
+  if (values.receivedAt && values.receivedAt > todayAR()) errors.receivedAt = "La fecha de ingreso no puede ser posterior a hoy.";
+  if (values.receivedAt && deliveredAt && values.receivedAt > deliveredAt)
+    errors.receivedAt = "La fecha de ingreso no puede ser posterior a la de salida.";
+  if (Object.keys(errors).length || !parsed.success) return { errors, values, message: "Revisá los campos marcados.", stamp: Date.now() };
+  const equipmentId = await updateRepairIntake(staff.id, orderId, parsed.data);
+  revalidatePath(`/taller/${orderId}`);
+  revalidatePath("/taller");
+  revalidatePath(`/equipos/${equipmentId}`);
+  return { message: "Datos del ingreso corregidos. Quedó anotado en la hoja de vida.", stamp: Date.now() };
 }
