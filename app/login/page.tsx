@@ -13,7 +13,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     <main className="flex min-h-dvh items-center justify-center bg-brand px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <Image src="/nyb-sticker.png" alt="NYB Medical" width={112} height={112} priority className="size-28" />
+          <Image src="/logo-nyb-512.png" alt="NYB Medical" width={112} height={112} priority className="size-28" />
           <EcgLine className="mt-4 h-6" />
           <h1 className="mt-2 text-xl font-semibold text-on-brand">Equipos y taller</h1>
           <p className="text-sm text-brand-muted">Acceso para el equipo de NYB Medical</p>

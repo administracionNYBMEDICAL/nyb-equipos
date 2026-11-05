@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Refresca la sesión de Supabase en cada pedido y manda a /login a quien no tiene sesión.
 // Es solo un chequeo rápido: la autorización real la hacen requireStaff() y la base (RLS).
-const PUBLIC = [/^\/login/, /^\/q\//, /^\/_next\//, /^\/icon/, /^\/nyb-/];
+const PUBLIC = [/^\/login/, /^\/q\//, /^\/_next\//, /^\/icon/, /^\/logo-nyb-/];
 
 export async function proxy(request: NextRequest) {
   const isPublic = PUBLIC.some((r) => r.test(request.nextUrl.pathname));

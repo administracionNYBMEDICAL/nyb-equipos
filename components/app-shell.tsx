@@ -32,7 +32,7 @@ const NAV = [
 function Brand() {
   return (
     <Link href="/" className="flex items-center gap-2.5 rounded-md px-2 py-1">
-      <Image src="/nyb-192.png" alt="" width={40} height={40} className="size-10" priority />
+      <Image src="/logo-nyb-192.png" alt="" width={40} height={40} className="size-10" priority />
       <span className="leading-none">
         <span className="block text-lg font-bold tracking-wide text-on-brand">NYB</span>
         <span className="block text-[10px] font-semibold tracking-[0.3em] text-accent">MEDICAL</span>

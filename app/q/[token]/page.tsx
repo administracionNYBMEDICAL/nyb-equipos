@@ -19,7 +19,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       <div className="mx-auto max-w-[480px] bg-bg shadow-card">
         <header className="bg-brand px-5 pt-4 pb-1 text-on-brand">
           <div className="flex items-center gap-3">
-            <Image src="/nyb-192.png" alt="NYB Medical" width={40} height={40} className="size-10" priority />
+            <Image src="/logo-nyb-192.png" alt="NYB Medical" width={40} height={40} className="size-10" priority />
             <div>
               <p className="font-semibold">NYB Medical</p>
               <p className="text-xs text-brand-muted">Servicio técnico de equipos médicos</p>
