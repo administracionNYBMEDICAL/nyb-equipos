@@ -136,7 +136,12 @@ export async function uploadPhotoAction(equipmentId: string, _: FormState, form:
   if (!(file instanceof File) || file.size === 0) return { errors: { photo: "Elegí una foto." }, stamp: Date.now() };
   if (!PHOTO_TYPES.includes(file.type)) return { errors: { photo: "La foto tiene que ser JPG, PNG o WebP." }, stamp: Date.now() };
   if (file.size > 1_500_000) return { errors: { photo: "La foto es muy pesada (máximo 1,5 MB)." }, stamp: Date.now() };
-  await setPhoto(staff.id, equipmentId, file.type, Buffer.from(await file.arrayBuffer()));
+  try {
+    await setPhoto(staff.id, equipmentId, file.type, Buffer.from(await file.arrayBuffer()));
+  } catch (e) {
+    console.error("uploadPhotoAction", e);
+    return { errors: { photo: "No se pudo guardar la foto. Probá de nuevo en un momento." }, stamp: Date.now() };
+  }
   revalidatePath(`/equipos/${equipmentId}`);
   return { message: "Foto guardada.", stamp: Date.now() };
 }
