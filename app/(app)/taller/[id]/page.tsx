@@ -2,11 +2,12 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
-import { getRepairOrder, listStaff } from "@/lib/data";
+import { getRepairOrder, listOrderBudgets, listStaff } from "@/lib/data";
 import { daysSince, fmtDate, todayAR } from "@/lib/format";
 import { Alert, Card, PageHeader, StatusBadge } from "@/components/ui";
 import { OrderUpdateForm } from "./order-update-form";
 import { IntakeForm } from "./intake-form";
+import { BudgetFiles } from "./budget-files";
 
 export const metadata: Metadata = { title: "Orden de reparación" };
 
@@ -25,7 +26,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/ta
   const sp = await searchParams;
   const o = await getRepairOrder(staff.id, id);
   if (!o) notFound();
-  const technicians = await listStaff(staff.id);
+  const [technicians, budgets] = await Promise.all([listStaff(staff.id), listOrderBudgets(staff.id, o.id)]);
   const closed = ["entregado", "faltante", "sin_reparacion"].includes(o.status);
 
   return (
@@ -48,6 +49,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/ta
       )}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
+        <div className="flex min-w-0 flex-col gap-5">
         <Card className="p-5">
           <h2 className="mb-2 text-lg font-semibold">Ingreso</h2>
           <dl>
@@ -71,6 +73,11 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/ta
             }}
           />
         </Card>
+        <Card className="p-5">
+          <h2 className="mb-2 text-lg font-semibold">Presupuestos</h2>
+          <BudgetFiles orderId={o.id} files={budgets} />
+        </Card>
+        </div>
         <Card className="p-5">
           <h2 className="mb-4 text-lg font-semibold">Estado y salida</h2>
           <OrderUpdateForm

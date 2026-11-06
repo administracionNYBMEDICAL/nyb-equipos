@@ -281,6 +281,35 @@ with sync_playwright() as p:
     page.wait_for_url(re.compile(r"/equipos/[0-9a-f-]{36}"))
     check("corregir ingreso: anotado en la hoja de vida", re.search(r"se corrigió el ingreso \(fecha de ingreso 20/10/2026 → 15/10/2026, remito de retiro\)", page.inner_text("main")) is not None)
 
+    # Presupuestos en PDF: se suben en la orden y aparecen en la ficha del equipo
+    eq_budget_url = page.url.split("?")[0]
+    page.goto(orden_url)
+    page.set_input_files("#budget-input", {"name": "trucho.pdf", "mimeType": "application/pdf", "buffer": b"esto no es un pdf"})
+    expect(page.get_by_text("El archivo no es un PDF válido.")).to_be_visible(timeout=15000)
+    check("presupuesto: rechaza un archivo que no es PDF", True)
+    pdf = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
+    page.set_input_files("#budget-input", {"name": "Presupuesto Nº 123.pdf", "mimeType": "application/pdf", "buffer": pdf})
+    expect(page.get_by_text("Presupuesto guardado.")).to_be_visible(timeout=15000)
+    link = page.get_by_role("link", name=re.compile("Presupuesto Nº 123.pdf"))
+    href = link.get_attribute("href")
+    r = ctx.request.get(BASE + href)
+    check("presupuesto: se abre como PDF", r.ok and r.headers["content-type"] == "application/pdf" and r.body() == pdf)
+    page.set_input_files("#budget-input", {"name": "Grande.pdf", "mimeType": "application/pdf", "buffer": pdf + b"0" * 3_990_000})
+    expect(page.get_by_text("Grande.pdf")).to_be_visible(timeout=30000)
+    check("presupuesto: acepta un PDF de casi 4 MB", True)
+    page.on("dialog", lambda d: d.accept())
+    page.get_by_role("button", name="Quitar Grande.pdf").click()
+    expect(page.get_by_text("Presupuesto quitado.")).to_be_visible(timeout=15000)
+    check("presupuesto: se puede quitar", page.get_by_text("Grande.pdf").count() == 0)
+    page.goto(eq_budget_url + "?tab=taller")
+    check("presupuesto: aparece en la ficha del equipo", page.get_by_role("link", name=re.compile("Presupuesto: Presupuesto Nº 123.pdf")).is_visible())
+    page.goto(eq_budget_url)
+    body = page.inner_text("main")
+    check("presupuesto: subida y baja en la hoja de vida", "Se subió el presupuesto" in body and "Se quitó el presupuesto" in body)
+    token_href = page.get_by_role("link", name=re.compile("Ver lo que ve el cliente")).get_attribute("href")
+    pub = ctx.request.get(BASE + token_href).text()
+    check("presupuesto: no aparece en la ficha pública", "presupuesto" not in pub.lower())
+
     # Teclado: llegar al botón principal con Tab
     page.goto(BASE + "/equipos/nuevo")
     page.keyboard.press("Tab")

@@ -78,6 +78,17 @@ export type EquipmentDetail = EquipmentRow & {
   photo_version: string | null;
   history: HistoryEntry[];
   orders: RepairOrder[];
+  budgets: BudgetFile[];
+};
+
+/** PDF de presupuesto de una orden. Nunca lleva el contenido: se baja por su ruta. */
+export type BudgetFile = {
+  id: string;
+  repair_order_id: string;
+  filename: string;
+  size_bytes: string;
+  created_at: string;
+  uploaded_by_name: string | null;
 };
 
 // ---------- Listados ----------
@@ -333,6 +344,65 @@ export async function getPhoto(uid: string, id: string): Promise<{ mime: string;
   });
 }
 
+const BUDGET_SELECT = `select a.id, a.repair_order_id, a.filename, a.size_bytes::text, a.created_at, st.full_name as uploaded_by_name
+  from attachments a left join staff st on st.id = a.uploaded_by
+ where a.kind = 'presupuesto'`;
+
+export async function listOrderBudgets(uid: string, orderId: string): Promise<BudgetFile[]> {
+  return asUser(uid, async (tx) => {
+    return (await tx.query(`${BUDGET_SELECT} and a.repair_order_id = $1 order by a.created_at desc`, [orderId])).rows;
+  });
+}
+
+export async function addBudgetFile(uid: string, orderId: string, filename: string, data: Buffer): Promise<string> {
+  return asUser(uid, async (tx) => {
+    const o = (await tx.query("select equipment_id, number from repair_orders where id = $1", [orderId])).rows[0];
+    if (!o) throw new Error("Orden inexistente");
+    const r = await tx.query(
+      `insert into attachments (kind, equipment_id, repair_order_id, filename, mime_type, size_bytes, data, uploaded_by)
+       values ('presupuesto', $1, $2, $3, 'application/pdf', $4, $5, auth.uid()) returning id`,
+      [o.equipment_id, orderId, filename, data.length, data],
+    );
+    await tx.query(
+      `insert into history_entries (equipment_id, type, summary, ref_table, ref_id, created_by, created_by_name)
+       values ($1, 'adjunto', $2, 'attachments', $3, auth.uid(), current_signature())`,
+      [o.equipment_id, `Se subió el presupuesto "${filename}" a la orden ${o.number}`, r.rows[0].id],
+    );
+    return r.rows[0].id;
+  });
+}
+
+export async function getBudgetFile(uid: string, orderId: string, id: string): Promise<{ filename: string; data: Buffer } | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(orderId) || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  return asUser(uid, async (tx) => {
+    const r = await tx.query(
+      "select filename, data from attachments where id = $1 and repair_order_id = $2 and kind = 'presupuesto' and data is not null",
+      [id, orderId],
+    );
+    return r.rows[0] ?? null;
+  });
+}
+
+/** Borra el archivo. La hoja de vida conserva la subida y suma quién lo quitó. */
+export async function removeBudgetFile(uid: string, orderId: string, id: string): Promise<boolean> {
+  return asUser(uid, async (tx) => {
+    const r = await tx.query(
+      `delete from attachments a using repair_orders ro
+        where a.id = $1 and a.repair_order_id = $2 and a.kind = 'presupuesto' and ro.id = a.repair_order_id
+        returning a.filename, a.equipment_id, ro.number`,
+      [id, orderId],
+    );
+    const f = r.rows[0];
+    if (!f) return false;
+    await tx.query(
+      `insert into history_entries (equipment_id, type, summary, created_by, created_by_name)
+       values ($1, 'adjunto', $2, auth.uid(), current_signature())`,
+      [f.equipment_id, `Se quitó el presupuesto "${f.filename}" de la orden ${f.number}`],
+    );
+    return true;
+  });
+}
+
 const ORDER_SELECT = `select ro.*, ro.budget_cents::text, ro.cost_cents::text, c.name as client_name,
        coalesce(st.full_name, ro.technician_name) as technician_name
   from repair_orders ro
@@ -362,8 +432,9 @@ export async function getEquipment(uid: string, id: string): Promise<EquipmentDe
     ).rows;
     const orders = (await tx.query(`${ORDER_SELECT} where ro.equipment_id = $1 order by ro.received_at desc, ro.number desc`, [id]))
       .rows.map(normalizeOrder);
+    const budgets = (await tx.query(`${BUDGET_SELECT} and a.equipment_id = $1 order by a.created_at desc`, [id])).rows;
     const open = orders.find((o) => (OPEN_REPAIR_STATUSES as readonly string[]).includes(o.status));
-    return { ...e, history, orders, open_order_status: open?.status ?? null, last_activity: history[0]?.created_at ?? null };
+    return { ...e, history, orders, budgets, open_order_status: open?.status ?? null, last_activity: history[0]?.created_at ?? null };
   });
 }
 

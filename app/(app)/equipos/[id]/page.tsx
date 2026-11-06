@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Monitor, Pencil, Wrench } from "lucide-react";
+import { FileText, Monitor, Pencil, Wrench } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
 import { getEquipment } from "@/lib/data";
 import { qrSvg } from "@/lib/qr";
@@ -155,6 +155,25 @@ export default async function EquipmentPage({ params, searchParams }: PageProps<
                         <span className="min-w-0 flex-1 text-sm">{o.reported_fault ?? "—"}</span>
                         <StatusBadge group="repair" value={o.status} />
                       </Link>
+                      {e.budgets.some((b) => b.repair_order_id === o.id) && (
+                        <ul className="px-5 pb-2">
+                          {e.budgets
+                            .filter((b) => b.repair_order_id === o.id)
+                            .map((b) => (
+                              <li key={b.id}>
+                                <a
+                                  href={`/taller/${o.id}/presupuesto/${b.id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex min-h-11 max-w-full items-center gap-2 text-sm font-semibold break-words text-accent-strong hover:underline"
+                                >
+                                  <FileText aria-hidden className="size-4 flex-none" />
+                                  <span className="min-w-0">Presupuesto: {b.filename}</span>
+                                </a>
+                              </li>
+                            ))}
+                        </ul>
+                      )}
                     </li>
                   ))}
                 </ul>

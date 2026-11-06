@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaff } from "@/lib/auth";
-import { createRepairOrder, OpenOrderExists, updateRepairIntake, updateRepairOrder } from "@/lib/data";
+import { addBudgetFile, createRepairOrder, OpenOrderExists, removeBudgetFile, updateRepairIntake, updateRepairOrder } from "@/lib/data";
 import { parseMoney, todayAR } from "@/lib/format";
 import { REPAIR_STATUSES } from "@/lib/status";
 import type { FormState } from "../equipos/actions";
@@ -116,4 +116,37 @@ export async function updateIntakeAction(orderId: string, deliveredAt: string | 
   revalidatePath("/taller");
   revalidatePath(`/equipos/${equipmentId}`);
   return { message: "Datos del ingreso corregidos. Quedó anotado en la hoja de vida.", stamp: Date.now() };
+}
+
+const MAX_PDF = 4_000_000;
+
+export async function uploadBudgetAction(orderId: string, _: FormState, form: FormData): Promise<FormState> {
+  const staff = await requireStaff();
+  const fail = (file: string): FormState => ({ errors: { file }, stamp: Date.now() });
+  const file = form.get("file");
+  if (!uuid.safeParse(orderId).success) return fail("Orden inválida.");
+  if (!(file instanceof File) || file.size === 0) return fail("Elegí un PDF.");
+  if (file.size > MAX_PDF) return fail("El PDF es muy pesado (máximo 4 MB).");
+  const data = Buffer.from(await file.arrayBuffer());
+  // se mira el contenido: la extensión y el tipo los puede informar mal el celular
+  if (!data.subarray(0, 1024).includes("%PDF-")) return fail("El archivo no es un PDF válido.");
+  const name = (file.name.split(/[\/]/).pop() ?? "").replace(/[\u0000-\u001f\u007f"]/g, "").trim().slice(-200) || "presupuesto.pdf";
+  try {
+    await addBudgetFile(staff.id, orderId, name, data);
+  } catch (e) {
+    console.error("uploadBudgetAction", e);
+    return fail("No se pudo guardar el PDF. Probá de nuevo en un momento.");
+  }
+  revalidatePath(`/taller/${orderId}`);
+  return { message: "Presupuesto guardado.", stamp: Date.now() };
+}
+
+export async function removeBudgetAction(orderId: string, _: FormState, form: FormData): Promise<FormState> {
+  const staff = await requireStaff();
+  const parsed = uuid.safeParse(String(form.get("fileId") ?? ""));
+  if (!parsed.success || !uuid.safeParse(orderId).success) return { errors: { file: "Archivo inválido." }, stamp: Date.now() };
+  const ok = await removeBudgetFile(staff.id, orderId, parsed.data);
+  if (!ok) return { errors: { file: "Ese archivo ya no está." }, stamp: Date.now() };
+  revalidatePath(`/taller/${orderId}`);
+  return { message: "Presupuesto quitado.", stamp: Date.now() };
 }

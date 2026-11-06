@@ -65,3 +65,10 @@ export function joinPlaces(...parts: (string | null | undefined)[]): string {
     })
     .join(" · ");
 }
+
+/** 320000 → "320 KB"; 1500000 → "1,5 MB" */
+export function fmtBytes(n: number | string): string {
+  const b = Number(n);
+  if (b < 1_000_000) return `${Math.max(1, Math.round(b / 1000))} KB`;
+  return `${(b / 1_000_000).toLocaleString("es-AR", { maximumFractionDigits: 1 })} MB`;
+}

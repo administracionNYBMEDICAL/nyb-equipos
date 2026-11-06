@@ -4,8 +4,8 @@ import type { NextConfig } from "next";
 // Cache Components ni prefetch parcial (pensados para páginas públicas cacheables).
 const nextConfig: NextConfig = {
   cacheComponents: false,
-  // fotos de equipos: se comprimen en el navegador (≈300 KB), 2 MB deja margen
-  experimental: { serverActions: { bodySizeLimit: "2mb" } },
+  // fotos (≈300 KB) y presupuestos en PDF (máx. 4 MB). Vercel corta los envíos a 4,5 MB.
+  experimental: { serverActions: { bodySizeLimit: "4.4mb" } },
   turbopack: {
     rules: {
       "*.css": {
