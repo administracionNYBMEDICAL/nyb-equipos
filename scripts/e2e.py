@@ -319,6 +319,12 @@ with sync_playwright() as p:
     card = page.locator("a[href^='/taller/']").filter(has_text="Electrobisturí").first.inner_text()
     check("taller: la tarjeta muestra serie y presupuesto", "S/N 361200" in card and "Presup. 7788" in card)
 
+    # Buscador: encuentra por número de presupuesto, en órdenes abiertas y entregadas
+    page.goto(BASE + "/equipos?q=7788")
+    check("búsqueda por presupuesto de orden abierta", page.locator("tbody tr").count() == 1 and "Presup. 7788" in page.locator("tbody tr").first.inner_text())
+    page.goto(BASE + "/equipos?q=202611041")
+    check("búsqueda por presupuesto de orden entregada", page.locator("tbody tr").count() == 1 and "Presup. 202611041" in page.locator("tbody tr").first.inner_text())
+
     # Teclado: llegar al botón principal con Tab
     page.goto(BASE + "/equipos/nuevo")
     page.keyboard.press("Tab")

@@ -24,6 +24,8 @@ export type EquipmentRow = {
   site_name: string | null;
   open_order_status: RepairStatus | null;
   last_activity: string | null;
+  /** Nº de presupuesto que coincide con la búsqueda, si lo hay. */
+  matched_budget: string | null;
 };
 
 export type HistoryEntry = {
@@ -105,9 +107,15 @@ export async function listEquipment(
       where.push(
         `(e.code ilike $${args.length} or e.serial ilike $${args.length} or e.brand ilike $${args.length}
           or e.model ilike $${args.length} or e.equipment_type ilike $${args.length} or s.name ilike $${args.length}
-          or c.name ilike $${args.length} or e.asset_number ilike $${args.length})`,
+          or c.name ilike $${args.length} or e.asset_number ilike $${args.length}
+          or exists (select 1 from repair_orders ro where ro.equipment_id = e.id and ro.budget_number ilike $${args.length}))`,
       );
     }
+    // el texto buscado siempre es $1: las órdenes cerradas también cuentan
+    const matchedBudget = f.q?.trim()
+      ? `(select ro.budget_number from repair_orders ro where ro.equipment_id = e.id and ro.budget_number ilike $1
+            order by ro.received_at desc limit 1)`
+      : "null::text";
     if (f.clientId) {
       args.push(f.clientId);
       where.push(`e.client_id = $${args.length}`);
@@ -122,7 +130,8 @@ export async function listEquipment(
               c.name as client_name, s.name as site_name,
               (select ro.status from repair_orders ro where ro.equipment_id = e.id
                  and ro.status in (${OPEN_SQL}) limit 1) as open_order_status,
-              (select max(h.created_at) from history_entries h where h.equipment_id = e.id) as last_activity
+              (select max(h.created_at) from history_entries h where h.equipment_id = e.id) as last_activity,
+              ${matchedBudget} as matched_budget
          from equipment e
          left join clients c on c.id = e.client_id
          left join sites s on s.id = e.site_id
