@@ -466,6 +466,7 @@ export type OpenOrderCard = RepairOrder & {
   equipment_type: string;
   brand: string | null;
   model: string | null;
+  serial: string | null;
   site_name: string | null;
 };
 
@@ -474,7 +475,7 @@ export async function listOpenOrders(uid: string): Promise<OpenOrderCard[]> {
     const r = await tx.query(
       `select ro.*, ro.budget_cents::text, ro.cost_cents::text, c.name as client_name,
               coalesce(st.full_name, ro.technician_name) as technician_name,
-              e.code, e.equipment_type, e.brand, e.model, s.name as site_name
+              e.code, e.equipment_type, e.brand, e.model, e.serial, s.name as site_name
          from repair_orders ro
          join clients c on c.id = ro.client_id
          join equipment e on e.id = ro.equipment_id

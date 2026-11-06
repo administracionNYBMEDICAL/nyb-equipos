@@ -310,6 +310,15 @@ with sync_playwright() as p:
     pub = ctx.request.get(BASE + token_href).text()
     check("presupuesto: no aparece en la ficha pública", "presupuesto" not in pub.lower())
 
+    # Tablero del taller: número de serie y de presupuesto para identificar rápido
+    page.goto(orden_url)
+    page.get_by_label("Nº presupuesto").fill("7788")
+    page.get_by_role("button", name="Guardar cambios").click()
+    expect(page.get_by_text("Orden guardada.")).to_be_visible()
+    page.goto(BASE + "/taller")
+    card = page.locator("a[href^='/taller/']").filter(has_text="Electrobisturí").first.inner_text()
+    check("taller: la tarjeta muestra serie y presupuesto", "S/N 361200" in card and "Presup. 7788" in card)
+
     # Teclado: llegar al botón principal con Tab
     page.goto(BASE + "/equipos/nuevo")
     page.keyboard.press("Tab")
