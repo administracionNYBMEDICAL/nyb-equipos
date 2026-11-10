@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { MessageCircle, Phone } from "lucide-react";
+import { FileText, MessageCircle, Phone } from "lucide-react";
 import { getPublicCard, equipmentIdForToken } from "@/lib/data";
 import { getStaff } from "@/lib/auth";
 import { fmtDate, todayAR } from "@/lib/format";
@@ -119,6 +119,27 @@ export default async function PublicCardPage({ params, searchParams }: PageProps
         >
           <Phone aria-hidden className="size-4" /> Llamar a NYB
         </a>
+
+        {card.documents.length > 0 && (
+          <>
+            <h2 className="eyebrow mt-6 mb-2">Documentos</h2>
+            <ul className="divide-y divide-border rounded-md border border-border">
+              {card.documents.map((d) => (
+                <li key={d.id}>
+                  <a
+                    href={`/q/${token}/doc/${d.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex min-h-12 items-center gap-2 px-3 text-sm font-semibold text-accent-strong"
+                  >
+                    <FileText aria-hidden className="size-4 flex-none" />
+                    {d.kind === "informe_preventivo" ? "Informe de preventivo" : "Documento"} · {fmtDate(d.on)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
 
         <h2 className="eyebrow mt-6 mb-3">Historial</h2>
         <HistoryTimeline

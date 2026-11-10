@@ -35,7 +35,7 @@ export default async function EquiposPage({ searchParams }: PageProps<"/equipos"
         <label htmlFor="q" className="sr-only">Buscar</label>
         <div className="relative min-w-60 flex-[2]">
           <Search aria-hidden className="pointer-events-none absolute top-3 left-3 size-4 text-muted" />
-          <Input id="q" name="q" defaultValue={q} placeholder="Serial, presupuesto, código NYB, marca, modelo, hospital…" className="pl-9" />
+          <Input id="q" name="q" defaultValue={q} placeholder="Serial, presupuesto, informe, código NYB, marca, modelo, hospital…" className="pl-9" />
         </div>
         <label htmlFor="cliente" className="sr-only">Cliente</label>
         <Select id="cliente" name="cliente" defaultValue={clientId} className="min-w-44 flex-1">
@@ -95,6 +95,7 @@ export default async function EquiposPage({ searchParams }: PageProps<"/equipos"
                         {e.equipment_type}
                         <div className="text-xs text-muted">{[e.brand, e.model].filter(Boolean).join(" ") || "—"}</div>
                         {e.matched_budget && <div className="mono text-xs font-semibold text-accent-strong">Presup. {e.matched_budget}</div>}
+                        {e.matched_report && <div className="mono text-xs font-semibold text-accent-strong">Informe {e.matched_report}</div>}
                       </td>
                       <td className="mono px-4 py-3 break-all">{e.serial ?? <span className="font-sans text-muted">sin número</span>}</td>
                       <td className="px-4 py-3">
@@ -128,6 +129,7 @@ export default async function EquiposPage({ searchParams }: PageProps<"/equipos"
                     </span>
                     <span className="text-sm text-muted">{joinPlaces(e.client_name, e.site_name, e.sector)}</span>
                     {e.matched_budget && <span className="mono text-sm font-semibold text-accent-strong">Presup. {e.matched_budget}</span>}
+                    {e.matched_report && <span className="mono text-sm font-semibold text-accent-strong">Informe {e.matched_report}</span>}
                   </Link>
                 </li>
               ))}

@@ -6,6 +6,7 @@ import {
   OPEN_REPAIR_STATUSES,
   OPEN_SQL,
   type EquipmentStatus,
+  type MaintenanceState,
   type RepairStatus,
 } from "./status";
 
@@ -26,6 +27,8 @@ export type EquipmentRow = {
   last_activity: string | null;
   /** Nº de presupuesto que coincide con la búsqueda, si lo hay. */
   matched_budget: string | null;
+  /** Nº de informe de preventivo que coincide con la búsqueda, si lo hay. */
+  matched_report: string | null;
 };
 
 export type HistoryEntry = {
@@ -108,13 +111,18 @@ export async function listEquipment(
         `(e.code ilike $${args.length} or e.serial ilike $${args.length} or e.brand ilike $${args.length}
           or e.model ilike $${args.length} or e.equipment_type ilike $${args.length} or s.name ilike $${args.length}
           or c.name ilike $${args.length} or e.asset_number ilike $${args.length}
-          or exists (select 1 from repair_orders ro where ro.equipment_id = e.id and ro.budget_number ilike $${args.length}))`,
+          or exists (select 1 from repair_orders ro where ro.equipment_id = e.id and ro.budget_number ilike $${args.length})
+          or exists (select 1 from maintenance_runs mr where mr.equipment_id = e.id and mr.report_number ilike $${args.length}))`,
       );
     }
     // el texto buscado siempre es $1: las órdenes cerradas también cuentan
     const matchedBudget = f.q?.trim()
       ? `(select ro.budget_number from repair_orders ro where ro.equipment_id = e.id and ro.budget_number ilike $1
             order by ro.received_at desc limit 1)`
+      : "null::text";
+    const matchedReport = f.q?.trim()
+      ? `(select mr.report_number from maintenance_runs mr where mr.equipment_id = e.id and mr.report_number ilike $1
+            order by mr.executed_on desc limit 1)`
       : "null::text";
     if (f.clientId) {
       args.push(f.clientId);
@@ -131,7 +139,8 @@ export async function listEquipment(
               (select ro.status from repair_orders ro where ro.equipment_id = e.id
                  and ro.status in (${OPEN_SQL}) limit 1) as open_order_status,
               (select max(h.created_at) from history_entries h where h.equipment_id = e.id) as last_activity,
-              ${matchedBudget} as matched_budget
+              ${matchedBudget} as matched_budget,
+              ${matchedReport} as matched_report
          from equipment e
          left join clients c on c.id = e.client_id
          left join sites s on s.id = e.site_id
@@ -654,7 +663,8 @@ export type PublicCard = {
   next_due_on: string | null;
   last_service_on: string | null;
   history: { at: string; type: string; summary: string }[];
-  documents: { id: string; filename: string }[];
+  /** Solo los marcados como visibles para el cliente. Sin nombre de archivo (migración 0004). */
+  documents: { id: string; kind: string; on: string }[];
 };
 
 export async function getPublicCard(token: string): Promise<PublicCard | null> {
@@ -665,4 +675,188 @@ export async function getPublicCard(token: string): Promise<PublicCard | null> {
 
 export async function equipmentIdForToken(uid: string, token: string): Promise<string | null> {
   return asUser(uid, async (tx) => (await tx.query("select id from equipment where qr_token = $1", [token])).rows[0]?.id ?? null);
+}
+
+// ---------- Preventivos ----------
+
+/** Plantilla genérica "Preventivo" (migración 0004): registro simple, sin checklist. */
+const PREVENTIVE_TEMPLATE = "00000000-0000-4000-9000-000000000001";
+const PREVENTIVE_VERSION = "00000000-0000-4000-9000-000000000002";
+
+const dmy = (iso: string) => iso.split("-").reverse().join("/");
+
+export type MaintenanceRow = {
+  equipment_id: string;
+  code: string;
+  equipment_type: string;
+  brand: string | null;
+  model: string | null;
+  serial: string | null;
+  client_name: string | null;
+  site_name: string | null;
+  sector: string | null;
+  interval_months: number;
+  next_due_on: string;
+  due_state: MaintenanceState;
+  last_on: string | null;
+  last_passed: boolean | null;
+  last_report: string | null;
+};
+
+export async function listMaintenance(uid: string): Promise<MaintenanceRow[]> {
+  return asUser(uid, async (tx) => {
+    const r = await tx.query(
+      `select e.id as equipment_id, e.code, e.equipment_type, e.brand, e.model, e.serial, e.sector,
+              c.name as client_name, s.name as site_name,
+              ms.interval_months, ms.next_due_on, ms.due_state,
+              lr.executed_on as last_on, lr.passed as last_passed, lr.report_number as last_report
+         from maintenance_status ms
+         join equipment e on e.id = ms.equipment_id and e.status <> 'baja'
+         left join clients c on c.id = e.client_id
+         left join sites s on s.id = e.site_id
+         left join lateral (select executed_on, passed, report_number from maintenance_runs mr
+                             where mr.equipment_id = e.id order by executed_on desc, created_at desc limit 1) lr on true
+        where ms.template_id = $1
+        order by ms.next_due_on asc, e.code asc`,
+      [PREVENTIVE_TEMPLATE],
+    );
+    return r.rows;
+  });
+}
+
+export type MaintenanceRun = {
+  id: string;
+  executed_on: string;
+  passed: boolean;
+  report_number: string | null;
+  executed_by_name: string | null;
+  file_id: string | null;
+  file_public: boolean | null;
+};
+
+export type EquipmentMaintenance = {
+  plan: { interval_months: number; next_due_on: string; due_state: MaintenanceState } | null;
+  runs: MaintenanceRun[];
+};
+
+export async function getEquipmentMaintenance(uid: string, equipmentId: string): Promise<EquipmentMaintenance> {
+  return asUser(uid, async (tx) => {
+    const plan =
+      (
+        await tx.query(
+          "select interval_months, next_due_on, due_state from maintenance_status where equipment_id = $1 and template_id = $2",
+          [equipmentId, PREVENTIVE_TEMPLATE],
+        )
+      ).rows[0] ?? null;
+    const runs = (
+      await tx.query(
+        `select mr.id, mr.executed_on, mr.passed, mr.report_number, st.full_name as executed_by_name,
+                a.id as file_id, a.public_on_qr as file_public
+           from maintenance_runs mr
+           left join staff st on st.id = mr.executed_by
+           left join attachments a on a.maintenance_run_id = mr.id and a.kind = 'informe_preventivo'
+          where mr.equipment_id = $1
+          order by mr.executed_on desc, mr.created_at desc`,
+        [equipmentId],
+      )
+    ).rows;
+    return { plan, runs };
+  });
+}
+
+export type NewPreventive = {
+  equipmentId: string;
+  executedOn: string;
+  passed: boolean;
+  reportNumber?: string;
+  intervalMonths: number;
+  nextDueOn: string;
+  file?: { name: string; data: Buffer };
+  publicOnQr: boolean;
+};
+
+/** Registra un preventivo hecho: plan (periodicidad y próxima fecha), ejecución e informe en PDF. */
+export async function registerPreventive(uid: string, p: NewPreventive): Promise<{ code: string }> {
+  return asUser(uid, async (tx) => {
+    const eq = (await tx.query("select code from equipment where id = $1 and status <> 'baja'", [p.equipmentId])).rows[0];
+    if (!eq) throw new Error("Equipo inexistente o dado de baja");
+    const plan = await tx.query(
+      `insert into maintenance_plans (equipment_id, template_id, interval_months, next_due_on)
+       values ($1, $2, $3, $4)
+       on conflict (equipment_id, template_id) do update set interval_months = excluded.interval_months, active = true
+       returning id`,
+      [p.equipmentId, PREVENTIVE_TEMPLATE, p.intervalMonths, p.nextDueOn],
+    );
+    const run = await tx.query(
+      `insert into maintenance_runs (plan_id, equipment_id, template_version_id, executed_on, executed_by, answers, passed, report_number)
+       values ($1, $2, $3, $4, auth.uid(), '{}', $5, $6) returning id`,
+      [plan.rows[0].id, p.equipmentId, PREVENTIVE_VERSION, p.executedOn, p.passed, blank(p.reportNumber)],
+    );
+    // el trigger calcula la próxima fecha por periodicidad; manda la que eligió el usuario
+    await tx.query("update maintenance_plans set next_due_on = $2 where id = $1", [plan.rows[0].id, p.nextDueOn]);
+    if (p.file) {
+      await tx.query(
+        `insert into attachments (kind, equipment_id, maintenance_run_id, filename, mime_type, size_bytes, data, public_on_qr, uploaded_by)
+         values ('informe_preventivo', $1, $2, $3, 'application/pdf', $4, $5, $6, auth.uid())`,
+        [p.equipmentId, run.rows[0].id, p.file.name, p.file.data.length, p.file.data, p.publicOnQr],
+      );
+    }
+    return { code: eq.code };
+  });
+}
+
+export async function reschedulePreventive(uid: string, equipmentId: string, intervalMonths: number, nextDueOn: string): Promise<void> {
+  return asUser(uid, async (tx) => {
+    await tx.query(
+      `insert into maintenance_plans (equipment_id, template_id, interval_months, next_due_on)
+       values ($1, $2, $3, $4)
+       on conflict (equipment_id, template_id) do update
+         set interval_months = excluded.interval_months, next_due_on = excluded.next_due_on, active = true`,
+      [equipmentId, PREVENTIVE_TEMPLATE, intervalMonths, nextDueOn],
+    );
+    await tx.query(
+      `insert into history_entries (equipment_id, type, summary, created_by, created_by_name)
+       values ($1, 'edicion', $2, auth.uid(), current_signature())`,
+      [equipmentId, `Próximo preventivo reprogramado al ${dmy(nextDueOn)} (cada ${intervalMonths} ${intervalMonths === 1 ? "mes" : "meses"})`],
+    );
+  });
+}
+
+export async function getReportFile(uid: string, id: string): Promise<{ filename: string; data: Buffer } | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  return asUser(uid, async (tx) => {
+    const r = await tx.query(
+      "select filename, data from attachments where id = $1 and kind = 'informe_preventivo' and data is not null",
+      [id],
+    );
+    return r.rows[0] ?? null;
+  });
+}
+
+export async function setReportPublic(uid: string, id: string, visible: boolean): Promise<string | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  return asUser(uid, async (tx) => {
+    const r = await tx.query(
+      `update attachments a set public_on_qr = $2
+         from maintenance_runs mr
+        where a.id = $1 and a.kind = 'informe_preventivo' and mr.id = a.maintenance_run_id
+        returning a.equipment_id, mr.executed_on`,
+      [id, visible],
+    );
+    const f = r.rows[0];
+    if (!f) return null;
+    await tx.query(
+      `insert into history_entries (equipment_id, type, summary, created_by, created_by_name)
+       values ($1, 'adjunto', $2, auth.uid(), current_signature())`,
+      [f.equipment_id, `El informe del preventivo del ${dmy(f.executed_on)} ${visible ? "quedó visible" : "dejó de estar visible"} para el cliente en el QR`],
+    );
+    return f.equipment_id as string;
+  });
+}
+
+export type PublicDocument = { kind: string; executed_on: string | null; data: Buffer };
+
+export async function getPublicDocument(token: string, id: string): Promise<PublicDocument | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id) || !/^[A-Za-z0-9_-]{6,64}$/.test(token)) return null;
+  return asAnon(async (tx) => (await tx.query("select * from public_document($1, $2)", [token, id])).rows[0] ?? null);
 }

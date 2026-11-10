@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FileText, Monitor, Pencil, Wrench } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
-import { getEquipment } from "@/lib/data";
+import { getEquipment, getEquipmentMaintenance } from "@/lib/data";
 import { qrSvg } from "@/lib/qr";
 import { fmtDate, joinPlaces } from "@/lib/format";
 import { OPEN_REPAIR_STATUSES } from "@/lib/status";
@@ -12,12 +12,14 @@ import { HistoryTimeline } from "@/components/history-timeline";
 import { NoteForm, StatusForm } from "./equipment-actions";
 import { PhotoUploader } from "./photo-uploader";
 import { QrPanel } from "./qr-panel";
+import { MaintenancePanel } from "./maintenance-panel";
 
 export const metadata: Metadata = { title: "Hoja de vida" };
 
 const TABS = [
   { id: "actividad", label: "Actividad" },
   { id: "taller", label: "Taller" },
+  { id: "preventivos", label: "Preventivos" },
   { id: "datos", label: "Datos" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
@@ -40,7 +42,7 @@ export default async function EquipmentPage({ params, searchParams }: PageProps<
   const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "actividad";
   const e = await getEquipment(staff.id, id);
   if (!e) notFound();
-  const svg = await qrSvg(e.qr_token);
+  const [svg, maintenance] = await Promise.all([qrSvg(e.qr_token), getEquipmentMaintenance(staff.id, e.id)]);
   const open = e.orders.find((o) => (OPEN_REPAIR_STATUSES as readonly string[]).includes(o.status));
   const photoUrl = e.has_photo ? `/equipos/${e.id}/foto?v=${e.photo_version}` : null;
 
@@ -98,9 +100,10 @@ export default async function EquipmentPage({ params, searchParams }: PageProps<
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0">
           {/* Pestañas */}
-          <nav aria-label="Secciones del equipo" className="mb-4 flex gap-1 border-b border-border">
+          <nav aria-label="Secciones del equipo" className="mb-4 flex gap-0 overflow-x-auto border-b border-border sm:gap-1">
             {TABS.map((t) => {
-              const count = t.id === "taller" ? e.orders.length : t.id === "actividad" ? e.history.length : 0;
+              const count =
+                t.id === "taller" ? e.orders.length : t.id === "actividad" ? e.history.length : t.id === "preventivos" ? maintenance.runs.length : 0;
               return (
                 <Link
                   key={t.id}
@@ -108,7 +111,7 @@ export default async function EquipmentPage({ params, searchParams }: PageProps<
                   scroll={false}
                   aria-current={tab === t.id ? "page" : undefined}
                   className={cx(
-                    "-mb-px inline-flex min-h-11 items-center gap-1.5 border-b-2 px-3 text-sm font-semibold",
+                    "-mb-px inline-flex min-h-11 flex-none items-center gap-1.5 border-b-2 px-2 text-sm font-semibold sm:px-3",
                     tab === t.id ? "border-accent-strong text-text" : "border-transparent text-muted hover:text-text",
                   )}
                 >
@@ -178,6 +181,12 @@ export default async function EquipmentPage({ params, searchParams }: PageProps<
                   ))}
                 </ul>
               )}
+            </Card>
+          )}
+
+          {tab === "preventivos" && (
+            <Card>
+              <MaintenancePanel equipmentId={e.id} data={maintenance} canRegister={e.status !== "baja"} />
             </Card>
           )}
 
